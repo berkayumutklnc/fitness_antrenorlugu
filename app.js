@@ -71,6 +71,7 @@ const IC = {
   gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
   star: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+  bone: '<path d="M8.5 8.5l7 7"/><circle cx="7" cy="5" r="2.2"/><circle cx="5" cy="7.5" r="2.2"/><circle cx="17" cy="19" r="2.2"/><circle cx="19" cy="16.5" r="2.2"/>',
   card: '<rect x="3" y="6" width="14" height="12" rx="2"/><path d="M7 3h12a2 2 0 0 1 2 2v10"/>'
 };
 const icon = (k, s = 20) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg>`;
@@ -83,6 +84,7 @@ const NAV = [
   ["deneme", "Deneme sınavları", "exam", "Deneme"],
   ["atlas", "Hareket atlası", "atlas", "Atlas"],
   ["proje", "Bitirme projesi", "proje", "Proje"],
+  ["anatomi", "Anatomi kampı", "bone", null],
   ["ezber", "Ezber kartları", "card", null],
   ["sozluk", "Sözlük", "dict", null],
   ["rehber", "Final rehberi", "guide", null],
@@ -211,6 +213,7 @@ ROUTES.unit = async (r, main) => {
     const toc = d.toc.map((t, j) => `<button data-s="s${j + 1}">${esc(t)}</button>`).join("");
     const pg = page(main, `${head}
       <details class="tocm"><summary>İçindekiler · ${d.toc.length} bölüm</summary><div class="ls">${toc}</div></details>
+      ${["u03", "u09", "u14"].includes(k) ? `<a class="callout ok" href="#anatomi" style="display:block;margin-top:14px;text-decoration:none;color:inherit"><b>Anatomi aklında kalmıyor mu?</b> Anatomi kampında kaslara dokunarak öğren, düzlemleri animasyonla gör, "Kası bul" oyununu oyna →</a>` : ""}
       <div class="readwrap" style="margin-top:18px"><article class="doc" id="doc">${d.html}</article><aside class="toc"><b>İçindekiler</b>${toc}</aside></div>
       <div class="card row between" style="margin-top:28px"><div><b>Bu üniteyi bitirdin mi?</b><div class="small muted">İşaretlersen ana sayfadaki ilerlemene sayılır.</div></div>
       <div class="row"><button class="btn ${ST.read[k] ? "plain" : ""}" id="readBtn">${ST.read[k] ? "✓ Okundu" : "Okudum olarak işaretle"}</button><a class="btn ghost" href="#${k}-quiz">Ekstra quize geç →</a></div></div>
@@ -965,6 +968,7 @@ ROUTES.home = async (r, main) => {
       ${T("uniteler", "book", "Konu anlatımı", "18 ünite, ünite ünite. Her ünitede konu, AH quizi ve ekstra quiz sekmesi.")}
       ${T("quiz", "quiz", "Quiz merkezi", "Karma test oluştur, flash kartlarla çalış, yanlış defterini temizle.")}
       ${T("deneme", "exam", "Deneme sınavları", "Gerçek dağılımla 3 × 100 soru, konu bazlı karne." + (denBest.some(x => x != null) ? " Bitirdiğin deneme var." : ""))}
+      ${T("anatomi", "bone", "Anatomi kampı", "Dokunmalı kas ve iskelet haritası, animasyonlu düzlemler, kası bul oyunu, hareket zinciri, kutu sistemli kartlar.")}
       ${T("atlas", "atlas", "Hareket analizi atlası", "47 egzersiz: eklem, hareket, düzlem, agonist, antagonist, sinerjist, stabilizatör, nötralizör.")}
       ${T("proje", "proje", "Bitirme projesi", "Testler tablosu, protokoller, norm hesaplayıcı ve değerlendirme rehberi.")}
       ${T("rehber", "guide", "Final sınav rehberi", "En çok çıkacak bilgiler, formüller, manuel hataları, son tekrar planı.")}
@@ -1050,6 +1054,575 @@ async function wireHome(main) {
     const draw = () => { const ch = ST.cards[key]; box.innerHTML = '<span class="eyebrow">Günün sorusu</span>'; box.appendChild(mcCard({ id, src: `Ünite ${q.no} ekstra quiz`, c: UCAT[q.k], num: "★", tag: `Ünite ${q.no}`, q: q.q, o: q.o, a: q.a, e: q.e, chosen: ch, reveal: true, onPick: i => { if (ST.cards[key] != null) return; ST.cards[key] = i; markAnswer(id, { ...q, src: `Ünite ${q.no} ekstra quiz`, c: UCAT[q.k] }, i === q.a); save(); draw(); } })); const c = box.querySelector(".q"); c.style.border = "0"; c.style.padding = "0"; };
     draw();
   } catch (e) { box.innerHTML = ""; }
+}
+
+/* ============ Anatomi kampı: kas & iskelet haritası, yön/düzlem, oyunlar, kartlar ============ */
+/* Kaynak: Ünite 3 ve 9 dokümanları (manuel s. 35–58, 132, 141–143). */
+const AM = [
+  // id, ad, Türkçe, görünüm (on/arka/derin), bölge, nerede, ne yapar, egzersiz, hafıza ipucu
+  ["pec", "Pectoralis major", "Büyük göğüs kası", "on", "Göğüs", "Göğüs önü, yelpaze şeklinde; sternum ve klavikuladan humerusa", "Kola adduksiyon, iç rotasyon, fleksiyon; yatay adduksiyon", "Bench press, push-up, chest fly", "Pectoralis = göğüs, major = büyük. Birine sarıldığını düşün: kolları önde birleştirmek (yatay adduksiyon) tam olarak pec'in işi."],
+  ["pecmin", "Pectoralis minor", "Küçük göğüs kası", "derin", "Göğüs", "Pectoralis major'un altında, derin", "Kürek kemiğini öne ve aşağı çeker", "Dips (yardımcı)", "Minor = küçük. Büyük kardeşin altına saklanmış küçük kas; omzu öne yuvarlar (kambur postürde kısalır)."],
+  ["serr", "Serratus anterior", "Ön dişli kas", "on", "Göğüs", "Kaburgaların yanında, testere dişi gibi", "Kürek kemiğini öne taşır (protraksiyon), göğüs kafesine yapışık tutar", "Push-up plus, punch", "Serratus = testere. 'Boksör kası': yumruk atarken kürek kemiğini öne iten kas."],
+  ["lat", "Latissimus dorsi", "Sırtın en geniş kası", "arka", "Sırt", "Bel ve alt sırttan kolun içine; V şeklini verir", "Omuz ekstansiyonu, adduksiyon ve iç rotasyon", "Lat pulldown, barfiks, row", "Latissimus = en geniş, dorsi = sırt. Barfikste seni yukarı çeken 'kanatlar'. Kolu yukarıdan aşağı-geriye çeker."],
+  ["trap", "Trapezius", "Kukulya kası", "arka", "Sırt", "Boyundan sırtın ortasına elmas (trapez) şeklinde; üst, orta, alt lifler", "Üst lif: skapula elevasyonu (shrug) ve boyun ekstansiyonu; orta lif: kürekleri geri çeker; alt lif: kürekleri aşağı indirir", "Shrug (üst), face pull, row (orta)", "Adı şeklinden: trapez. Omuz silkme = üst trapez. 'Bilmiyorum' derken omuz silkersin, trapezini çalıştırırsın."],
+  ["rhomb", "Rhomboidler (major, minor)", "Eşkenar dörtgen kaslar", "derin", "Sırt", "Trapezius'un altında, omurga ile kürek kemiği arası", "Kürek kemiklerini birbirine yaklaştırır (retraksiyon)", "Seated row, reverse fly", "Rhombus = eşkenar dörtgen. 'Göğsünü aç, kürek kemiklerinin arasında kalem sıkıştır' dediğinde çalışan kas."],
+  ["teres", "Teres major", "Büyük yuvarlak kas", "arka", "Sırt", "Kürek kemiğinin alt köşesi", "Latissimus'a yardım: omuz ekstansiyonu, iç rotasyon", "Row, pulldown", "Teres = yuvarlak. 'Lat'ın küçük kardeşi': aynı işi yapar, kürek kemiğinin alt köşesinden başlar."],
+  ["erec", "Erector spinae", "Omurgayı dikleştiren kas", "arka", "Sırt / core", "Omurga boyunca iki sütun (halat)", "Omurga ekstansiyonu, lateral fleksiyon ve rotasyon; omurgayı dik tutar", "Back extension, deadlift, superman", "Erector = dik tutan, spinae = omurga. Omurganın iki yanındaki 'halatlar'. Öne eğilirken frenler (eksantrik)."],
+  ["delt", "Deltoid (ön, orta, arka)", "Omuz kası", "on", "Omuz", "Omzu saran üçgen kas; 3 baş", "Ön: omuz fleksiyonu · Orta: abduksiyon · Arka: ekstansiyon", "Front raise, lateral raise, reverse fly, shoulder press", "Delta harfi (Δ) gibi üçgen. Üç baş = üç yön: öne kaldır (ön), yana aç (orta), geri çek (arka)."],
+  ["supra", "Supraspinatus", "Diken üstü kası (rotator cuff)", "derin", "Omuz", "Kürek kemiğinin üstü (spina scapula'nın üstü)", "Abduksiyonun ilk 15°'si", "–", "Supra = üstünde. Kolu yana açarken ilk 15°'yi başlatan 'marş motoru'; sonra orta deltoid devralır."],
+  ["infra", "Infraspinatus ve teres minor", "Diken altı kası (rotator cuff)", "arka", "Omuz", "Kürek kemiğinin arkası", "Dış rotasyon", "Band ile dış rotasyon", "Infra = altında. Dirsek 90° yanda, ön kolu dışa açmak (kapıyı dışa açmak) = dış rotasyon."],
+  ["subsc", "Subscapularis", "Kürek altı kası (rotator cuff)", "derin", "Omuz", "Kürek kemiğinin ön yüzü (kaburgalara bakan yüz)", "İç rotasyon", "Band ile iç rotasyon", "Sub = altında, scapula = kürek. Rotator cuff'ın tek iç rotatörü: 'kolunu karnına sar'."],
+  ["scm", "Sternocleidomastoid", "Göğüs-köprücük-meme kası", "on", "Boyun", "Kulağın arkasından sternum ve klavikulaya çapraz", "Servikal fleksiyon, rotasyon ve lateral fleksiyon", "Boyun esnetme, izometrik çalışma", "İsim üç yapışma yerini sayar: sterno (göğüs kemiği) + cleido (köprücük) + mastoid (kulak arkası çıkıntı)."],
+  ["bic", "Biceps brachii", "İki başlı kol kası (pazu)", "on", "Kol", "Üst kolun önü", "Dirsek fleksiyonu, ön kola supinasyon, omuza fleksiyon", "Biceps curl, chin-up", "Bi = 2 baş, brachii = kol. Curl yapar ve 'çorba tutar': avuç yukarı çevirme (supinasyon)."],
+  ["brach", "Brachialis", "Kol kası", "derin", "Kol", "Biceps'in altında, derin", "Dirsek fleksiyonu (en güçlü fleksör)", "Hammer curl", "Biceps'in altındaki gizli işçi. Avuç ne tarafa bakarsa baksın dirseği büken asıl güç."],
+  ["brrad", "Brachioradialis", "Kol-radius kası", "on", "Ön kol", "Ön kolun dış üstü", "Dirsek fleksiyonu (yarı prone el, çekiç tutuşu)", "Hammer curl, reverse curl", "Brachio (kol) + radialis (radius): kolu radiusa bağlar. Çekiç tutar gibi curl."],
+  ["tri", "Triceps brachii", "Üç başlı kol kası", "arka", "Kol", "Üst kolun arkası; uzun, lateral, medial baş", "Dirsek ekstansiyonu, omuz ekstansiyonu", "Triceps pushdown, dips, overhead extension", "Tri = 3 baş. Kapıyı iterek kapatmak, şınavda kolu düzleştirmek: dirsek ekstansiyonu."],
+  ["fore", "Ön kol fleksör ve ekstansörleri", "Ön kol kasları", "on", "Ön kol", "Ön kolun iç (fleksör) ve dış (ekstansör) yüzü", "Bilek ve parmak fleksiyonu / ekstansiyonu, kavrama", "Wrist curl, farmer walk", "Avuç içi tarafı büker (fleksör), el sırtı tarafı açar (ekstansör)."],
+  ["rect", "Rectus abdominis", "Düz karın kası (six-pack)", "on", "Gövde / core", "Karının önü, sternumdan pubise dikey", "Omurga fleksiyonu, lateral fleksiyon, rotasyon", "Crunch, reverse crunch", "Rectus = düz, abdominis = karın. Sternumdan pubise düz şerit; crunch'ta göğsü leğene yaklaştırır."],
+  ["eobl", "External oblique", "Dış eğik karın kası", "on", "Gövde / core", "Karının yanı, en yüzeyel; lifler 'elleri cebe sokma' yönünde", "Omurga fleksiyonu, lateral fleksiyon, karşı tarafa (kontralateral) rotasyon", "Russian twist, bicycle crunch, woodchop", "Ellerini ön ceplerine sok: parmakların dış eğik liflerinin yönünü gösterir. Dış eğik = karşı tarafa döndürür."],
+  ["iobl", "Internal oblique", "İç eğik karın kası", "derin", "Gövde / core", "External oblique'in altında, lifleri ters yönde", "Aynı tarafa (ipsilateral) rotasyon, lateral fleksiyon", "Side plank, woodchop", "İç = İpsilateral (aynı taraf). Dış = karşı taraf. 'İç-İ' eşleşmesiyle hatırla."],
+  ["tva", "Transversus abdominis", "Enine karın kası", "derin", "Gövde / core", "En derin karın kası, korse gibi yatay", "Karın içi basıncı artırır, omurgayı stabilize eder; hareket yaptırmaz", "Vacuum, dead bug, plank", "Transversus = enine. Bel korsesi / kemer gibi sarar. Hareket yaptırmaz, sıkar."],
+  ["multi", "Multifidus", "Çok parçalı kas", "derin", "Gövde / core", "Omurlar arasında, en derin sırt kası", "Omurları tek tek stabilize eder", "Bird dog", "Multi = çok, fidus = parçalı. Her omuru tek tek tutan küçük kas zinciri."],
+  ["ql", "Quadratus lumborum", "Dört köşe bel kası", "derin", "Gövde / core", "Belin derininde, son kaburga ile leğen arası", "Lateral fleksiyon, leğeni yukarı kaldırma", "Side plank, suitcase carry", "Quadratus = dört köşe, lumborum = bel. Tek elle valiz taşırken gövdeni dik tutan kas."],
+  ["dia", "Diyafram", "Diyafram", "derin", "Gövde / core", "Akciğerlerin altında kubbe şeklinde", "Solunumun ana kası; core'un 'tavanı'", "Diyafram nefesi", "Core bir kutu: diyafram tavan, pelvik taban zemin, TVA ve obliqueler duvarlar, multifidus-erector arka duvar."],
+  ["pelf", "Pelvik taban kasları", "Pelvik taban", "derin", "Gövde / core", "Leğenin tabanı", "Core'un 'tabanı'", "Kegel", "Core kutusunun zemini."],
+  ["gmax", "Gluteus maximus", "Büyük kalça kası", "arka", "Kalça", "Kalçanın arkası; vücudun en büyük kası", "Kalça ekstansiyonu, dış rotasyon", "Hip thrust, squat, deadlift, lunge", "Maximus = en büyük. Merdiven çıkarken, çömelmeden kalkarken kalçayı açan (ekstansiyon) motor."],
+  ["gmed", "Gluteus medius", "Orta kalça kası", "arka", "Kalça", "Kalçanın yanı, maximus'un üstü", "Kalça abduksiyonu, iç ve dış rotasyon; tek ayakta leğeni dengeler", "Side-lying leg raise, band walk, clamshell", "Medius = orta, yanda. Tek ayakta durunca leğenin düşmesini engeller; zayıfsa squat'ta diz içe kaçar."],
+  ["gmin", "Gluteus minimus", "Küçük kalça kası", "derin", "Kalça", "Medius'un altında, en derin", "Abduksiyon, iç rotasyon", "Side-lying leg raise", "Minimus = en küçük. Medius'un altında, onunla aynı işi yapar."],
+  ["ilio", "Iliopsoas (psoas major + iliacus)", "Kalça fleksörü", "derin", "Kalça", "Bel omurlarından ve leğenden femura; derin", "Kalça fleksiyonu (ana kalça fleksörü)", "Leg raise, knee raise", "İlio (ilium, leğen) + psoas (bel). Dizi göğsüne çeken kas; uzun oturmakta kısalır."],
+  ["tfl", "Tensor fasciae latae (TFL)", "Uyluk fasyası gerici kası", "on", "Kalça", "Kalçanın ön-yanı", "Kalça fleksiyonu, abduksiyonu, iç rotasyonu", "–", "Tensor = gerici, fasciae latae = uyluğun yan fasyası. IT bandını geren küçük kas."],
+  ["piri", "Derin dış rotatörler (piriformis vb.)", "Armut biçimli kas", "derin", "Kalça", "Gluteus maximus'un altında", "Kalça dış rotasyonu", "Clamshell, piriformis esnetme", "Piriformis = armut biçimli. Bacağı dışa çeviren derin kaslar."],
+  ["quad", "Quadriceps", "Dört başlı uyluk kası", "on", "Uyluk", "Uyluğun önü; rectus femoris, vastus lateralis, vastus medialis, vastus intermedius", "Diz ekstansiyonu; rectus femoris ayrıca kalça fleksiyonu yapar (iki eklemi geçen tek baş)", "Squat, leg extension, lunge, leg press", "Quadri = 4 baş. Topa tekme atarken dizi düzleştiren kas. 'Vastus' = geniş: lateralis dışta, medialis içte (gözyaşı damlası)."],
+  ["ham", "Hamstring (3 kas)", "Arka uyluk kasları", "arka", "Uyluk", "Uyluğun arkası; biceps femoris (dış), semitendinosus ve semimembranosus (iç)", "Diz fleksiyonu, kalça ekstansiyonu", "Leg curl, Romanian deadlift, good morning", "'Semi'ler içeride (medial), biceps femoris dışta. Topuğu kalçaya çeker (leg curl)."],
+  ["add", "Adduktorlar", "İç uyluk kasları", "on", "Uyluk", "Uyluğun iç yanı (magnus, longus, brevis, gracilis, pectineus)", "Kalça adduksiyonu; magnus ayrıca iç rotasyon", "Adduction machine, sumo squat", "Add = ekle: bacağı orta hatta ekler. Bacak bacak üstüne atarken çalışırlar."],
+  ["sart", "Sartorius", "Terzi kası", "on", "Uyluk", "Uyluğu çapraz geçen, vücudun en uzun kası", "Kalça fleksiyonu, abduksiyonu, dış rotasyon; diz fleksiyonu", "–", "Sartor = terzi. Bağdaş kurup oturan terzinin pozisyonu = bu kasın tüm hareketleri."],
+  ["gast", "Gastrocnemius", "Baldır kası (iki başlı)", "arka", "Bacak", "Bacak arkası, yüzeyel; dizin üstünden başlar", "Ayak bileği plantar fleksiyonu; diz fleksiyonuna yardım", "Ayakta calf raise", "Gastro = karın, kneme = bacak: 'bacağın karnı'. Parmak ucuna kalkınca (plantar fleksiyon) şişen kas."],
+  ["sol", "Soleus", "Pisi balığı kası", "arka", "Bacak", "Gastrocnemius'un altında, derin", "Plantar fleksiyon (diz bükükken asıl çalışan)", "Oturarak calf raise", "Solea = pisi/dil balığı, yassı. Diz bükükken gastro gevşer, iş soleus'a kalır: oturarak calf raise."],
+  ["tib", "Tibialis anterior", "Ön kaval kası", "on", "Bacak", "Kaval kemiğinin önü", "Ayak bileği dorsi fleksiyonu, inversiyon", "Topuk yürüyüşü, toe raise", "Tibia (kaval) + anterior (ön). Topukla yürürken ayak ucunu kaldıran kas."],
+  ["per", "Peroneuslar (fibularis)", "Kamış kemiği kasları", "on", "Bacak", "Bacağın dış yanı", "Eversiyon, plantar fleksiyona yardım", "Band ile eversiyon", "Perone = fibula. Fibula dışta → peroneus dışta → tabanı dışa çevirir (eversiyon)."]
+];
+const AB = [
+  // id, Latince, Türkçe, tip, bilgi, ipucu
+  ["cran", "Cranium", "Kafatası", "Yassı (kubbe)", "Beyni korur; kemikleri arası hareketsiz (non-sinoviyal) eklem.", "Kask gibi: yassı kemikler korur."],
+  ["mand", "Mandibula", "Alt çene", "Düzensiz", "Kafatasının tek hareketli kemiği.", "Mandibula = 'çiğneyen'."],
+  ["cerv", "Vertebrae cervicales", "Boyun omurları", "Düzensiz", "7 omur; lordoz (içe kavis). 1. ve 2. boyun omuru pivot eklem yapar.", "Sabah 7'de kalk: servikal 7."],
+  ["clav", "Clavicula", "Köprücük kemiği", "Uzun", "Omuz kuşağı; sternum ile kürek kemiği arasında köprü.", "Clavis = anahtar: anahtar şeklinde S kemik, 'köprü' gibi uzanır."],
+  ["scap", "Scapula", "Kürek kemiği", "Yassı", "Omuz kuşağı; sırtta, rotator cuff kasları buradan başlar.", "Kürek gibi yassı; kürek çekerken (row) geri gelir."],
+  ["stern", "Sternum", "Göğüs kemiği", "Yassı", "Göğsün ortası; kaburgalar kıkırdakla bağlanır.", "Kravat gibi göğsün ortasında."],
+  ["cost", "Costae", "Kaburgalar", "Yassı", "12 çift; arkada torakal omurlara bağlanır.", "12 çift kaburga = 12 torakal omur."],
+  ["hum", "Humerus", "Pazu kemiği", "Uzun", "Üst kol; omuz (top-yuva) ve dirsek (menteşe) eklemlerine katılır.", "Dirseğe çarpınca 'humor'lu bir sızı: İngilizcesi 'funny bone'."],
+  ["rad", "Radius", "Ön kolun başparmak tarafı", "Uzun", "Ön kolun dış (lateral) kemiği; supinasyon-pronasyonda ulnanın etrafında döner.", "RAdius = başpaRmAk tarafı. Radyo anteni dışarıda (lateral)."],
+  ["uln", "Ulna", "Ön kolun serçe parmak tarafı", "Uzun", "Ön kolun iç (medial) kemiği; dirseğin sivri ucu.", "Ulna serçe parmak tarafında, içeride (medial)."],
+  ["carp", "Ossa carpi", "El bileği kemikleri (karpal)", "Kısa", "8 kısa kemik; kondiloid el bileği eklemi.", "Kısa kemiklerin iki örneği: karpal (el bileği) ve tarsal (ayak bileği)."],
+  ["mcar", "Metakarpal ve falanks", "El tarağı ve parmak kemikleri", "Uzun", "Parmak kemikleri küçük olsa da uzun kemik sayılır.", "Boyu eninden fazla = uzun kemik, ne kadar küçük olursa olsun."],
+  ["lumb", "Vertebrae lumbales", "Bel omurları", "Düzensiz", "5 omur; lordoz (içe kavis). Bel ağrısının en sık bölgesi.", "Öğlen 12'de yemek (torakal 12), akşam 5'te bel ağrısı (lumbar 5)."],
+  ["pelv", "Pelvis (ilium, ischium, pubis)", "Leğen kemiği", "Yassı", "Kalça eklemi (top-yuva) burada; gövdeyi bacaklara bağlar.", "İlium kanat, ischium oturma kemiği, pubis önde."],
+  ["sacr", "Sacrum ve coccyx", "Sağrı ve kuyruk sokumu", "Düzensiz", "Sakrum 5 kaynaşmış omur (kifoz), koksiks 4 kaynaşmış omur.", "5 + 4 kaynaşmış."],
+  ["fem", "Femur", "Uyluk kemiği", "Uzun", "Vücudun en uzun kemiği; kalça ve diz eklemleri.", "En uzun kemik = femur."],
+  ["pat", "Patella", "Diz kapağı", "Susamsı", "Quadriceps tendonunun içinde; susamsı kemik.", "Susam tanesi gibi tendonun içine gömülü."],
+  ["tibb", "Tibia", "Kaval kemiği", "Uzun", "Bacağın iç (medial), kalın kemiği; ağırlığı taşır.", "Tibia kalın ve içte; kavalla çalınır gibi düz."],
+  ["fib", "Fibula", "Kamış kemiği", "Uzun", "Bacağın dış (lateral), ince kemiği.", "Fibula ince ve dışta: kamış gibi ince."],
+  ["tars", "Tarsal ve calcaneus", "Ayak bileği ve topuk kemiği", "Kısa", "7 tarsal kemik; en büyüğü topuk kemiği calcaneus (Aşil tendonu buraya yapışır).", "Calx = topuk."],
+  ["mtar", "Metatarsal ve falanks", "Ayak tarağı ve parmaklar", "Uzun", "Ayak tarağı ve parmak kemikleri.", "Meta = ötesinde: tarsalın ötesinde."]
+];
+
+/* ---- SVG şekilleri (vücudun sol yarısı; sağ yarı aynalanır, viewBox 200×460) ---- */
+const SIL = "M100,6 C88,6 81,16 81,29 C81,41 87,49 92,52 L92,60 C82,64 68,66 59,70 C49,74 45,84 44,96 L41,130 C40,146 38,160 37,172 L33,208 C31,222 30,234 30,244 C28,254 27,267 32,272 C36,276 40,268 41,260 L45,240 C48,224 51,205 53,186 L57,150 C58,140 60,131 63,124 L65,150 C66,174 66,198 64,222 C62,240 62,258 64,278 L67,330 C67,350 66,370 68,394 L72,430 C70,440 63,448 69,453 L95,453 C97,446 95,439 93,431 L95,394 C96,372 96,350 96,330 L98,272 L100,264 Z";
+const FRONT = {
+  scm: "M86,40 L90,38 L99,62 L95,65 Z",
+  trap: "M92,53 L92,60 C82,64 72,66 63,69 C70,64 82,58 92,53 Z",
+  delt: "M60,71 C50,73 45,83 45,96 L47,114 C52,105 58,97 63,88 C66,81 66,74 60,71 Z",
+  pec: "M98,71 L98,112 C88,117 74,115 65,105 L62,93 C63,85 67,79 72,75 C82,72 90,71 98,71 Z",
+  serr: "M66,110 L73,115 L66,119 L73,124 L66,128 L72,133 L66,136 C63,127 63,118 66,110 Z",
+  bic: "M48,114 C54,109 60,113 60,123 L57,154 C55,162 50,163 47,158 L45,131 C45,121 46,116 48,114 Z",
+  brrad: "M45,163 C49,160 53,162 54,168 L49,200 L43,214 C41,200 41,180 45,163 Z",
+  fore: "M54,170 C56,176 55,184 53,196 L46,236 L39,236 L42,216 L49,201 Z",
+  rect: "M99,117 L99,214 L88,214 C86,182 86,150 87,119 Z",
+  eobl: "M85,121 C85,150 84,182 86,214 L79,216 C73,206 69,194 68,182 L67,140 C70,130 76,124 85,121 Z",
+  tfl: "M67,222 C69,215 75,214 77,220 L75,248 L68,250 C65,240 65,230 67,222 Z",
+  sart: "M73,226 L79,223 C85,262 90,296 94,322 L90,326 C84,296 78,262 73,226 Z",
+  quad: "M79,236 C85,240 86,262 84,290 L81,312 L75,312 C72,290 72,262 79,236 Z M70,250 C74,252 74,282 74,312 L72,324 C67,314 65,292 66,267 C66,258 67,252 70,250 Z M86,294 C90,302 93,313 92,325 C88,331 82,329 80,321 C80,309 82,300 86,294 Z",
+  add: "M97,240 L98,268 L95,300 C91,290 88,276 86,263 C86,253 89,245 97,240 Z",
+  tib: "M73,345 C77,342 81,346 81,353 L79,400 L77,425 L74,425 C73,400 71,370 73,345 Z",
+  per: "M68,350 L71,348 L72,410 L70,412 C68,390 67,370 68,350 Z",
+  gast: "M88,345 C93,350 94,366 92,386 L88,389 C86,370 85,356 88,345 Z"
+};
+const BACK = {
+  trap: "M100,48 L92,54 C86,60 74,64 62,70 C70,75 80,82 87,97 L100,142 Z",
+  delt: "M60,71 C50,73 45,83 45,96 L47,112 C52,104 58,96 63,88 C66,81 66,74 60,71 Z",
+  infra: "M86,99 C80,95 71,92 66,97 L69,116 C77,118 85,112 86,99 Z",
+  teres: "M67,119 C73,118 80,120 83,125 L68,130 C65,126 65,122 67,119 Z",
+  lat: "M99,143 L99,190 C92,206 82,210 73,201 C68,182 66,152 66,132 L84,127 C89,132 94,138 99,143 Z",
+  erec: "M99,150 L99,226 L92,226 C90,205 90,176 92,150 Z",
+  tri: "M47,100 C54,98 60,104 60,114 L58,152 C55,160 49,160 46,155 L44,125 C44,112 45,104 47,100 Z",
+  fore: "M45,163 C51,160 55,164 54,172 L46,236 L39,236 C38,210 40,180 45,163 Z",
+  gmed: "M70,212 C78,206 90,207 96,213 L93,226 C85,225 77,228 69,236 C66,228 67,218 70,212 Z",
+  gmax: "M99,226 L99,268 C90,276 76,276 68,266 C64,255 66,241 72,233 C80,227 90,225 99,226 Z",
+  ham: "M70,277 C76,277 80,285 80,300 L78,330 L72,332 C68,312 66,292 70,277 Z M82,279 C90,277 96,283 96,296 L93,330 L82,330 C80,310 80,291 82,279 Z",
+  gast: "M70,341 C76,335 84,337 86,346 L84,378 C80,384 74,384 70,376 C67,365 67,351 70,341 Z M88,341 C94,339 96,347 95,361 L92,384 C88,386 86,380 86,370 Z",
+  sol: "M71,381 C75,387 82,389 92,387 L88,410 L77,410 C74,401 72,391 71,381 Z"
+};
+/* iskelet: sol yarı (aynalanır) + orta hat kemikleri (aynalanmaz) */
+const SK_SIDE = {
+  clav: "M98,72 Q80,67 62,74 L62,78 Q80,72 98,77 Z",
+  scap: "M64,79 L86,83 L77,121 Z",
+  cost: "M96,85 Q72,84 69,96 Q70,90 96,90 Z M96,93 Q70,92 67,106 Q69,99 96,98 Z M96,101 Q69,101 66,116 Q68,108 96,106 Z M96,109 Q69,110 66,126 Q68,117 96,114 Z M95,117 Q70,119 68,134 Q70,126 95,122 Z M94,125 Q74,128 72,140 Q74,133 94,130 Z",
+  hum: "M61,79 C54,77 51,84 54,91 L50,159 C48,166 55,169 57,164 L61,93 C65,89 65,82 61,79 Z",
+  rad: "M47,168 L39,237 L43,238 L51,170 Z",
+  uln: "M55,167 L47,239 L51,240 L59,168 Z",
+  carp: "M37,240 L52,241 L51,250 L36,249 Z",
+  mcar: "M36,252 L51,253 L50,262 L42,275 L37,275 L31,262 Z",
+  pelv: "M97,191 C89,182 74,178 67,186 C63,197 67,211 77,215 C83,222 90,226 97,224 L97,214 C90,214 86,208 88,200 L97,198 Z",
+  fem: "M88,208 C93,208 94,218 88,221 L82,227 L87,317 L93,322 L81,326 L79,318 L73,232 C69,226 71,219 77,219 Z",
+  pat: "M80,326 C80,320 89,320 89,326 C89,334 80,334 80,326 Z",
+  tibb: "M82,338 L94,338 L92,428 L86,428 Z",
+  fib: "M74,340 L78,340 L78,426 L75,426 Z",
+  tars: "M74,430 L94,430 L96,442 L74,442 Z",
+  mtar: "M73,444 L97,444 L99,453 L69,453 Z"
+};
+const SK_MID = {
+  cran: "M100,6 C88,6 82,16 82,28 C82,36 85,41 88,44 L112,44 C115,41 118,36 118,28 C118,16 112,6 100,6 Z",
+  mand: "M87,42 Q89,55 100,57 Q111,55 113,42 L110,43 Q108,51 100,52 Q92,51 90,43 Z",
+  cerv: "M96,58 h8 v3 h-8 Z M96,62 h8 v3 h-8 Z M96,66 h8 v3 h-8 Z",
+  stern: "M96,78 L104,78 L103,120 L100,126 L97,120 Z",
+  lumb: "M95,148 h10 v6 h-10 Z M95,156 h10 v6 h-10 Z M95,164 h10 v6 h-10 Z M95,172 h10 v6 h-10 Z M95,180 h10 v6 h-10 Z",
+  sacr: "M93,190 L107,190 L104,212 L100,220 L96,212 Z"
+};
+
+/* yön terimleri */
+const ADIR = [
+  ["Anterior (ventral)", "Ön", "Tibialis anterior: bacağın önündeki kas"],
+  ["Posterior (dorsal)", "Arka", "Latissimus dorsi: sırttaki kas"],
+  ["Superior", "Üst", "Baş, göğse göre superior"],
+  ["Inferior", "Alt", "Diz, kalçaya göre inferior"],
+  ["Medial", "İç yan (orta hatta yakın)", "Vastus medialis: uyluğun iç yanı"],
+  ["Lateral", "Dış yan", "Vastus lateralis: uyluğun dış yanı"],
+  ["Proksimal", "Gövdeye yakın", "Dirsek, bileğe göre proksimal"],
+  ["Distal", "Gövdeden uzak", "Bilek, dirseğe göre distal"],
+  ["Superficialis / Profundus", "Yüzeyel / Derin", "Gastrocnemius yüzeyel, soleus derin"],
+  ["Dexter / Sinister", "Sağ / Sol", "Kişinin kendi sağı-solu (karşıdakinin değil)"]
+];
+const ADQ = [
+  ["Göğüs kası (pectoralis), sırt kaslarına göre ___ bulunur.", "Anterior", "ap"],
+  ["Latissimus dorsi, rectus abdominis'e göre ___ bulunur.", "Posterior", "ap"],
+  ["Kalp, omurgaya göre ___.", "Anterior", "ap"],
+  ["Topuk kemiği (calcaneus) ayağın ___ ucundadır.", "Posterior", "ap"],
+  ["Tibialis anterior bacağın ___ yüzündedir.", "Anterior", "ap"],
+  ["Baş, göğse göre ___.", "Superior", "si"],
+  ["Diz, kalçaya göre ___.", "Inferior", "si"],
+  ["Göbek, göğüs kemiğine göre ___.", "Inferior", "si"],
+  ["Trapezius'un boyuna yakın üst lifleri, alt liflerine göre ___.", "Superior", "si"],
+  ["Burun, gözlere göre ___.", "Medial", "ml"],
+  ["Anatomik duruşta başparmak, serçe parmağa göre ___.", "Lateral", "ml"],
+  ["Vastus medialis uyluğun ___ yanındadır.", "Medial", "ml"],
+  ["Fibula, tibiaya göre ___.", "Lateral", "ml"],
+  ["Ulna, radiusa göre ___.", "Medial", "ml"],
+  ["Sternum, kaburgalara göre ___.", "Medial", "ml"],
+  ["Peroneuslar bacağın ___ yanındadır.", "Lateral", "ml"],
+  ["Dirsek, bileğe göre ___.", "Proksimal", "pd"],
+  ["Ayak bileği, dize göre ___.", "Distal", "pd"],
+  ["Omuz, dirseğe göre ___.", "Proksimal", "pd"],
+  ["Parmak uçları, el bileğine göre ___.", "Distal", "pd"],
+  ["Uyluk kemiğinin kalçaya bakan ucu ___ uçtur.", "Proksimal", "pd"],
+  ["Soleus, gastrocnemius'a göre ___ yerleşir.", "Derin (profundus)", "sp"],
+  ["External oblique, internal oblique'e göre ___.", "Yüzeyel (superficialis)", "sp"]
+];
+const ADSET = { ap: ["Anterior", "Posterior", "Medial", "Superior"], si: ["Superior", "Inferior", "Proksimal", "Lateral"], ml: ["Medial", "Lateral", "Anterior", "Distal"], pd: ["Proksimal", "Distal", "Superior", "Medial"], sp: ["Yüzeyel (superficialis)", "Derin (profundus)", "Medial", "Posterior"] };
+
+/* hareket sözlüğü: ad, anlam, düzlem, kendin dene */
+const AMOV = [
+  ["Fleksiyon", "Bükme; eklem açısı küçülür", "Sagital", "Dirseği bük, kolu öne kaldır, dizi göğsüne çek"],
+  ["Ekstansiyon", "Germe; eklem açısı büyür", "Sagital", "Dirseği düzleştir, kolu geriye götür"],
+  ["Abduksiyon", "Orta hattan uzaklaştırma", "Frontal", "Kolu ya da bacağı yana aç"],
+  ["Adduksiyon", "Orta hatta yaklaştırma", "Frontal", "Yana açılan kolu geri indir"],
+  ["Lateral fleksiyon", "Gövdeyi ya da boynu yana eğme", "Frontal", "Kulağını omzuna yaklaştır"],
+  ["Rotasyon (iç/dış)", "Kendi ekseni etrafında döndürme", "Horizontal", "Dirsek 90° yanda, ön kolu dışa aç"],
+  ["Pronasyon", "Ön kolu içe çevirme, avuç aşağı", "Horizontal", "Avucunu yere çevir"],
+  ["Supinasyon", "Ön kolu dışa çevirme, avuç yukarı", "Horizontal", "Avucunu tavana çevir (çorba tutar)"],
+  ["Dorsi fleksiyon", "Ayak ucunu yukarı kaldırma", "Sagital", "Topuğa bas, parmak uçları yukarı"],
+  ["Plantar fleksiyon", "Ayak ucunu aşağı bastırma", "Sagital", "Parmak ucuna kalk (calf raise)"],
+  ["İnversiyon", "Ayak tabanını içe çevirme", "Frontal", "Tabanını diğer ayağa baktır"],
+  ["Eversiyon", "Ayak tabanını dışa çevirme", "Frontal", "Tabanını dışa baktır"],
+  ["Elevasyon", "Yukarı kaldırma", "Frontal", "Omuz silk (shrug)"],
+  ["Depresyon", "Aşağı bastırma", "Frontal", "Omuzları aşağı indir"],
+  ["Yatay adduksiyon", "Yana açık kolu önde birleştirme", "Horizontal", "Chest fly: kollar önde buluşur"],
+  ["Yatay abduksiyon", "Önde duran kolu yana açma", "Horizontal", "Reverse fly"],
+  ["Retraksiyon", "Kürek kemiklerini geri çekme", "Horizontal", "Kürekleri birbirine sıkıştır (row)"],
+  ["Protraksiyon", "Kürek kemiklerini öne taşıma", "Horizontal", "Push-up plus, yumruk uzatma"],
+  ["Sirkumduksiyon", "Fleksiyon, ekstansiyon, abduksiyon, adduksiyonun birleşimi; daire çizme", "Birden fazla", "Kolunla havada daire çiz"]
+];
+/* egzersiz → eklem, hareket, düzlem, kas (ok: doğru sayılabilecek diğer kaslar) */
+const ACH = [
+  ["Front raise", "Omuz", "Fleksiyon", "Sagital", "Deltoid (ön)", ["Pectoralis major", "Biceps brachii"]],
+  ["Straight-arm pulldown", "Omuz", "Ekstansiyon", "Sagital", "Latissimus dorsi", ["Deltoid (arka)", "Triceps brachii", "Teres major"]],
+  ["Lateral raise", "Omuz", "Abduksiyon", "Frontal", "Deltoid (orta)", ["Supraspinatus"]],
+  ["Lat pulldown", "Omuz", "Adduksiyon", "Frontal", "Latissimus dorsi", ["Pectoralis major", "Biceps brachii", "Teres major"]],
+  ["Band ile iç rotasyon", "Omuz", "İç rotasyon", "Horizontal", "Subscapularis", ["Latissimus dorsi", "Pectoralis major"]],
+  ["Band ile dış rotasyon", "Omuz", "Dış rotasyon", "Horizontal", "Infraspinatus", ["Teres minor"]],
+  ["Chest fly", "Omuz", "Yatay adduksiyon", "Horizontal", "Pectoralis major", ["Deltoid (ön)"]],
+  ["Reverse fly", "Omuz", "Yatay abduksiyon", "Horizontal", "Deltoid (arka)", ["Rhomboidler", "Trapezius"]],
+  ["Shrug", "Kürek kemiği", "Elevasyon", "Frontal", "Trapezius", []],
+  ["Kürekleri sıkma (row sonu)", "Kürek kemiği", "Retraksiyon", "Horizontal", "Rhomboidler", ["Trapezius"]],
+  ["Push-up plus", "Kürek kemiği", "Protraksiyon", "Horizontal", "Serratus anterior", ["Pectoralis minor"]],
+  ["Biceps curl", "Dirsek", "Fleksiyon", "Sagital", "Biceps brachii", ["Brachialis", "Brachioradialis"]],
+  ["Triceps pushdown", "Dirsek", "Ekstansiyon", "Sagital", "Triceps brachii", []],
+  ["Avucu tavana çevirme", "Ön kol (radioulnar)", "Supinasyon", "Horizontal", "Biceps brachii", []],
+  ["Crunch", "Omurga", "Fleksiyon", "Sagital", "Rectus abdominis", ["External oblique", "Internal oblique"]],
+  ["Back extension", "Omurga", "Ekstansiyon", "Sagital", "Erector spinae", ["Multifidus", "Gluteus maximus", "Hamstring"]],
+  ["Side bend", "Omurga", "Lateral fleksiyon", "Frontal", "Quadratus lumborum", ["External oblique", "Internal oblique", "Erector spinae", "Rectus abdominis"]],
+  ["Russian twist", "Omurga", "Rotasyon", "Horizontal", "External oblique", ["Internal oblique", "Rectus abdominis"]],
+  ["Knee raise", "Kalça", "Fleksiyon", "Sagital", "Iliopsoas", ["Quadriceps", "TFL", "Sartorius"]],
+  ["Hip thrust", "Kalça", "Ekstansiyon", "Sagital", "Gluteus maximus", ["Hamstring"]],
+  ["Side-lying leg raise", "Kalça", "Abduksiyon", "Frontal", "Gluteus medius", ["Gluteus minimus", "TFL", "Sartorius"]],
+  ["Adduction machine", "Kalça", "Adduksiyon", "Frontal", "Adduktorlar", []],
+  ["Clamshell", "Kalça", "Dış rotasyon", "Horizontal", "Derin dış rotatörler", ["Gluteus maximus", "Gluteus medius", "Sartorius"]],
+  ["Leg curl", "Diz", "Fleksiyon", "Sagital", "Hamstring", ["Gastrocnemius", "Sartorius"]],
+  ["Leg extension", "Diz", "Ekstansiyon", "Sagital", "Quadriceps", []],
+  ["Topuk yürüyüşü / toe raise", "Ayak bileği", "Dorsi fleksiyon", "Sagital", "Tibialis anterior", []],
+  ["Ayakta calf raise", "Ayak bileği", "Plantar fleksiyon", "Sagital", "Gastrocnemius", ["Soleus", "Peroneuslar"]],
+  ["Oturarak calf raise", "Ayak bileği", "Plantar fleksiyon", "Sagital", "Soleus", ["Gastrocnemius", "Peroneuslar"]],
+  ["Band ile tabanı dışa çevirme", "Ayak bileği", "Eversiyon", "Frontal", "Peroneuslar", []]
+];
+const AKAS = ["Deltoid (ön)", "Deltoid (orta)", "Deltoid (arka)", "Pectoralis major", "Latissimus dorsi", "Trapezius", "Rhomboidler", "Serratus anterior", "Subscapularis", "Infraspinatus", "Supraspinatus", "Biceps brachii", "Triceps brachii", "Brachialis", "Rectus abdominis", "External oblique", "Erector spinae", "Quadratus lumborum", "Iliopsoas", "Gluteus maximus", "Gluteus medius", "Adduktorlar", "Derin dış rotatörler", "Hamstring", "Quadriceps", "Tibialis anterior", "Gastrocnemius", "Soleus", "Peroneuslar", "Teres major"];
+const AEKLEM = ["Omuz", "Kürek kemiği", "Dirsek", "Ön kol (radioulnar)", "Omurga", "Kalça", "Diz", "Ayak bileği"];
+/* isim çözücü */
+const AROOT = [
+  ["Musculus (M.)", "Kas"], ["Maximus / Medius / Minimus", "En büyük / Orta / En küçük"], ["Major / Minor", "Daha büyük / Daha küçük"],
+  ["Longus / Brevis", "Uzun / Kısa"], ["Magnus", "Büyük"], ["Rectus", "Düz"], ["Obliquus", "Eğik"], ["Transversus", "Enine"],
+  ["Biceps / Triceps / Quadriceps", "2 / 3 / 4 başlı"], ["Brachii", "Kol"], ["Femoris", "Uyluk"], ["Abdominis", "Karın"],
+  ["Pectoralis", "Göğüs"], ["Dorsi", "Sırt"], ["Latissimus", "En geniş"], ["Gluteus", "Kalça (kaba et)"], ["Erector", "Dik tutan"],
+  ["Spinae", "Omurga"], ["Serratus", "Testere dişli"], ["Anterior / Posterior", "Ön / Arka"], ["Lateralis / Medialis", "Dış / İç"],
+  ["Supra / Infra / Sub", "Üstünde / Altında / Altında (önünde)"], ["Tensor", "Gerici"], ["Vastus", "Geniş"], ["Teres", "Yuvarlak"]
+];
+const ANAME = [
+  ["Gluteus maximus", "Kalçanın en büyük kası"], ["Gluteus medius", "Kalçanın orta kası"], ["Rectus abdominis", "Düz karın kası"],
+  ["Rectus femoris", "Düz uyluk kası"], ["Biceps femoris", "Uyluğun iki başlı kası"], ["Biceps brachii", "Kolun iki başlı kası"],
+  ["Triceps brachii", "Kolun üç başlı kası"], ["Latissimus dorsi", "Sırtın en geniş kası"], ["Pectoralis major", "Büyük göğüs kası"],
+  ["Pectoralis minor", "Küçük göğüs kası"], ["Erector spinae", "Omurgayı dik tutan kas"], ["Transversus abdominis", "Enine karın kası"],
+  ["External oblique", "Dış eğik karın kası"], ["Serratus anterior", "Öndeki testere dişli kas"], ["Tibialis anterior", "Kaval kemiğinin önündeki kas"],
+  ["Vastus lateralis", "Uyluğun dış yanındaki geniş kas"], ["Vastus medialis", "Uyluğun iç yanındaki geniş kas"], ["Adductor longus", "Uzun yaklaştırıcı kas"],
+  ["Adductor magnus", "Büyük yaklaştırıcı kas"], ["Teres major", "Büyük yuvarlak kas"], ["Supraspinatus", "Kürek kemiği çıkıntısının üstündeki kas"],
+  ["Infraspinatus", "Kürek kemiği çıkıntısının altındaki kas"], ["Quadriceps femoris", "Uyluğun dört başlı kası"], ["Tensor fasciae latae", "Uyluk fasyasını geren kas"]
+];
+
+/* etiket bağlantı noktaları (sol yarı koordinatları) */
+const ANCH = {
+  on: { scm: [93, 52], trap: [74, 64], delt: [52, 88], pec: [82, 94], serr: [67, 123], bic: [53, 135], rect: [93, 165], eobl: [76, 178], brrad: [47, 182], fore: [45, 218], tfl: [70, 234], quad: [77, 262], add: [92, 262], sart: [86, 290], gast: [90, 365], tib: [76, 380], per: [69, 398] },
+  arka: { trap: [86, 80], delt: [52, 86], infra: [76, 104], teres: [72, 124], tri: [52, 128], lat: [80, 165], erec: [95, 200], fore: [46, 200], gmed: [80, 218], gmax: [84, 250], ham: [76, 305], gast: [76, 360], sol: [82, 398] },
+  iskelet: { cran: [92, 20], mand: [95, 52], cerv: [99, 63], clav: [76, 72], stern: [99, 100], scap: [72, 95], cost: [80, 112], hum: [56, 125], lumb: [99, 165], sacr: [99, 200], pelv: [74, 195], rad: [44, 205], uln: [52, 215], carp: [44, 245], mcar: [40, 262], fem: [80, 270], pat: [84, 327], fib: [76, 380], tibb: [89, 390], tars: [84, 436], mtar: [84, 449] }
+};
+function labelLayer(view) {
+  const A = ANCH[view]; const nm = id => { const m = view === "iskelet" ? ABI[id] : AMI[id]; return m ? m[1].replace(/ \(.*\)$/, "") : id; };
+  const L2 = Object.entries(A).sort((a, b) => a[1][1] - b[1][1]); let last = -99;
+  return L2.map(([id, [x, y]]) => { const ly = Math.max(y, last + 13); last = ly; return `<g class="lb" data-id="${id}"><polyline points="${x},${y} 18,${ly} 10,${ly}" class="lbl-l"/><circle cx="${x}" cy="${y}" r="1.6" class="lbl-d"/><text x="8" y="${ly + 3}" text-anchor="end" class="lbl-t">${esc(nm(id))}</text></g>`; }).join("");
+}
+/* ---- yardımcılar ---- */
+const AMI = Object.fromEntries(AM.map(m => [m[0], m]));
+const ABI = Object.fromEntries(AB.map(b => [b[0], b]));
+function anSt() { ST.anat = Object.assign({ box: {}, best: {} }, ST.anat || {}); return ST.anat; }
+function bodySvg(view, opt = {}) {
+  const shapes = view === "on" ? FRONT : view === "arka" ? BACK : SK_SIDE;
+  const cls = view === "iskelet" ? "bn" : "ms";
+  const side = Object.entries(shapes).map(([id, d]) => `<path class="${cls}" data-id="${id}" d="${d}"/>`).join("");
+  const mid = view === "iskelet" ? Object.entries(SK_MID).map(([id, d]) => `<path class="bn" data-id="${id}" d="${d}"/>`).join("") : "";
+  const back = view === "arka" ? '<path class="spine" d="M100,60 L100,226"/>' : "";
+  const lbl = view === "iskelet" ? "" : `<text x="8" y="14" class="svlbl">${view === "on" ? "ÖN" : "ARKA"}</text>`;
+  const vb = opt.labels ? "-112 0 312 460" : "0 0 200 460";
+  return `<svg class="body ${view === "iskelet" ? "skel" : ""} ${opt.labels ? "lbls" : ""}" viewBox="${vb}" role="img" aria-label="${view === "iskelet" ? "İskelet" : "Kas haritası " + view}">
+    ${lbl}<path class="sil" d="${SIL}"/><path class="sil" transform="translate(200 0) scale(-1 1)" d="${SIL}"/>
+    <g>${side}</g><g transform="translate(200 0) scale(-1 1)">${side}</g>${mid}${back}${opt.labels ? labelLayer(view) : ""}</svg>`;
+}
+function anOpts(ans, pool, n = 4) { return shuffle([ans, ...shuffle(pool.filter(x => x !== ans)).slice(0, n - 1)]); }
+function anTabs(r) {
+  return segNav([["anatomi", "Başla"], ["anatomi-kas", "Kas haritası"], ["anatomi-kemik", "İskelet"], ["anatomi-yon", "Yön ve düzlem"], ["anatomi-zincir", "Hareket zinciri"], ["anatomi-isim", "İsim çözücü"], ["anatomi-kart", "Kartlar"]], r);
+}
+function boxCount(prefix) { const S = anSt(); return Object.entries(S.box).filter(([k, v]) => k.startsWith(prefix) && v >= 3).length; }
+
+/* ---- ana sayfa ---- */
+ROUTES.anatomi = async (r, main) => {
+  const sub = r.split("-")[1] || "";
+  const fn = { "": anHome, kas: anMap, kemik: anSkel, yon: anYon, zincir: anZincir, isim: anIsim, kart: anKart }[sub] || anHome;
+  fn(r, main);
+};
+function anHome(r, main) {
+  const S = anSt(); const b = S.best;
+  const prog = [["Kaslar", boxCount("m:"), AM.length, "anatomi-kart"], ["Kemikler", boxCount("b:"), AB.length, "anatomi-kart"], ["Terimler", boxCount("t:"), ADIR.length + AMOV.length, "anatomi-kart"]];
+  page(main, `<div class="stack"><div class="uhead"><span class="eyebrow">Anatomi kampı</span><h1>Kaslar, kemikler, yönler: oynayarak öğren</h1>
+    <p class="lead">Anatomi ezberle değil, bağlantıyla öğrenilir. Bir kasın adı çoğu zaman yerini ve işini zaten söyler. Burada her şeyi dört adımda bağlıyoruz: <b>isim → yer → hareket → egzersiz</b>.</p></div>
+    ${anTabs(r)}
+    <section class="kpis">${prog.map(p => `<a class="card kpi" href="#${p[3]}"><b>${p[1]}/${p[2]}</b><span>${p[0]} öğrenildi (kartta 3. kutuya çıkan)</span></a>`).join("")}<div class="card kpi"><b>${b.bul != null ? b.bul + "/10" : "–"}</b><span>"Kası bul" en iyi skor</span></div></section>
+    <section class="card stack"><h2>7 günlük anatomi planı (günde 20 dakika)</h2>
+      <ol class="steps">
+        <li><b>1. gün · Dil:</b> <a href="#anatomi-isim">İsim çözücü</a>'deki 25 Latince kökü öğren, sonra isim oyununu oyna. "Gluteus maximus = kalçanın en büyüğü" dediğin an isim ezberi yarıya iner.</li>
+        <li><b>2. gün · Yön ve düzlem:</b> <a href="#anatomi-yon">Yön ve düzlem</a> sayfasındaki animasyonları izle, her hareketi <b>kendin yap</b>. Sonra yön testini %80'in üstüne çıkar.</li>
+        <li><b>3. gün · Ön yüz kasları:</b> <a href="#anatomi-kas">Kas haritası</a>nda ön yüzü keşfet: her kasa dokun, ipucunu oku, kendi vücudunda o kası kasıp eliyle yokla.</li>
+        <li><b>4. gün · Arka yüz ve derin kaslar:</b> Arka yüz + derin kas listesi (rotator cuff, core kutusu, iliopsoas). Sonra "Kası bul" oyununu 10/10 yapana kadar oyna.</li>
+        <li><b>5. gün · İskelet:</b> <a href="#anatomi-kemik">İskelet</a>: 21 kemik, omurga sayıları (7-12-5-5-4) ve kemik tipleri.</li>
+        <li><b>6. gün · Hareket zinciri:</b> <a href="#anatomi-zincir">Hareket zinciri</a>: egzersizi gör, eklemi, hareketi, düzlemi ve kası sırayla bul. Quizdeki fotoğraf sorularının hepsi bu kalıp.</li>
+        <li><b>7. gün · Tekrar:</b> <a href="#anatomi-kart">Kartlar</a>da kutu sistemiyle tekrar et, sonra <a href="#u03-quiz">Ünite 3</a> ve <a href="#u09-quiz">Ünite 9</a> quizlerini çöz.</li>
+      </ol>
+      <p class="small muted">Sonraki günlerde her gün 5 dakika kart, 5 dakika "Kası bul", 5 dakika hareket zinciri yeterli.</p></section>
+    <section class="grid2" style="align-items:start">
+      <div class="card stack"><h2>Neden aklında kalmıyor?</h2><p>Çünkü kas listesi birbirinden kopuk isimler gibi geliyor. Beyin kopuk bilgiyi atar, <b>bağlı</b> bilgiyi tutar. Her kası şu üç soruyla bağla:</p>
+        <ol class="steps"><li><b>Nerede?</b> Haritada gör, kendi vücudunda dokun.</li><li><b>Ne yapar?</b> Hareketi kendin yap, kası kasılırken hisset.</li><li><b>Hangi egzersiz?</b> Salonda o makineyi gözünün önüne getir.</li></ol></div>
+      <div class="card stack"><h2>En çok işe yarayan 6 ipucu</h2><ul>
+        <li><b>Kas çiftleri:</b> Her öndeki kasın arkada tersini yapan bir eşi var: pec ↔ lat, biceps ↔ triceps, rectus abdominis ↔ erector spinae, iliopsoas ↔ gluteus max, quadriceps ↔ hamstring, tibialis anterior ↔ gastrocnemius.</li>
+        <li><b>Düzlemler:</b> <b>S</b>agital = <b>S</b>elam ver (öne-arkaya), <b>F</b>rontal = <b>F</b>il kanadı (yana), <b>H</b>orizontal = <b>H</b>alay dönüşü (dönme).</li>
+        <li><b>Rotator cuff = SİTS:</b> Supraspinatus, İnfraspinatus, Teres minor, Subscapularis.</li>
+        <li><b>Omurga 7-12-5-5-4:</b> Sabah 7 kahvaltı, öğlen 12 yemek, akşam 5 çay; sakrum 5 ve koksiks 4 kaynaşmış.</li>
+        <li><b>Radius başparmak tarafında,</b> ulna serçe tarafında. <b>Tibia kalın ve içte,</b> fibula ince ve dışta.</li>
+        <li><b>Hareketin adı eklemle söylenir:</b> "fleksiyon" değil, "kalça fleksiyonu". Quiz şıklarında yanlış eklem tuzağına dikkat.</li></ul></div>
+    </section></div>`);
+}
+
+/* ---- kas haritası + oyunlar ---- */
+function anMap(r, main) {
+  let view = "on", mode = "kesfet", sel = null, game = null, labels = true;
+  const pg = page(main, `<div class="stack"><div class="uhead"><span class="eyebrow">Anatomi kampı</span><h1>Kas haritası</h1><p class="muted">Bir kasa dokun: yeri, işi, egzersizi ve hafıza ipucu çıkar. Sonra oyun modlarıyla kendini sına.</p></div>
+    ${anTabs(r)}
+    <div class="row wrap"><div class="chipsel" id="mv"><button data-v="on" aria-pressed="true">Ön yüz</button><button data-v="arka" aria-pressed="false">Arka yüz</button></div>
+    <div class="chipsel" id="mm"><button data-m="kesfet" aria-pressed="true">Keşfet</button><button data-m="bul" aria-pressed="false">Oyun: Kası bul</button><button data-m="ne" aria-pressed="false">Oyun: Bu hangi kas?</button></div><div class="chipsel"><button id="lt" aria-pressed="true">Etiketler</button></div></div>
+    <div class="anwrap"><div class="anfig" id="fig"></div><div class="stack" id="side"></div></div>
+    <section class="card stack"><h2>Tüm kaslar</h2><p class="small muted">Gri olanlar derin kaslar: haritada görünmez, üstteki kasın altında yer alır.</p><div class="chipsel wrap" id="ml"></div></section></div>`);
+  const fig = $("#fig", pg), side = $("#side", pg);
+  const onMap = id => !!(view === "on" ? FRONT : BACK)[id];
+  const viewOf = id => FRONT[id] ? "on" : BACK[id] ? "arka" : null;
+  const drawFig = () => { fig.innerHTML = bodySvg(view, { labels: labels && mode === "kesfet" }); $$("g.lb", fig).forEach(g => g.onclick = () => tap(g.dataset.id)); $$("path.ms", fig).forEach(p => p.onclick = () => tap(p.dataset.id)); mark(); };
+  const mark = () => { $$("path.ms", fig).forEach(p => { p.classList.toggle("sel", p.dataset.id === sel); p.classList.remove("ok", "bad"); }); $$("g.lb", fig).forEach(g => g.classList.toggle("sel", g.dataset.id === sel)); };
+  const card = m => `<div class="card stack ancard"><div><span class="pill">${esc(m[4])}</span> ${m[3] === "derin" ? '<span class="pill">derin kas</span>' : ""}</div><h2 style="margin:0">${esc(m[1])}</h2><div class="muted">${esc(m[2])}</div>
+    <dl class="andl"><dt>Nerede?</dt><dd>${esc(m[5])}</dd><dt>Ne yapar?</dt><dd>${esc(m[6])}</dd><dt>Egzersiz</dt><dd>${esc(m[7])}</dd></dl><div class="callout ok"><b>Aklında kalsın:</b> ${esc(m[8])}</div></div>`;
+  const showInfo = () => {
+    if (mode !== "kesfet") return;
+    side.innerHTML = sel ? card(AMI[sel]) : `<div class="card stack"><h2>Nasıl kullanılır?</h2><p>Haritada bir kasa dokun ya da aşağıdaki listeden seç. Ön ve arka yüz arasında geçiş yap. Her kasta <b>kendi vücudunda dene</b>: kası kas, eliyle yokla.</p><p class="small muted">Çiftleri birlikte öğren: pec ↔ lat, biceps ↔ triceps, quadriceps ↔ hamstring.</p></div>`;
+  };
+  const setView = v => { view = v; $$("#mv button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === v)); drawFig(); };
+  const pick = id => { sel = id; const v = viewOf(id); if (v && v !== view) setView(v); else mark(); showInfo(); if (window.innerWidth < 900) side.scrollIntoView({ behavior: "smooth", block: "nearest" }); };
+  $("#ml").innerHTML = AM.map(m => `<button data-id="${m[0]}" class="${m[3] === "derin" ? "deep" : ""}" aria-pressed="false">${esc(m[1])}</button>`).join("");
+  $$("#ml button").forEach(b => b.onclick = () => { if (mode !== "kesfet") setMode("kesfet"); pick(b.dataset.id); });
+  /* oyunlar: sadece haritada görünen kaslar */
+  const visible = AM.filter(m => FRONT[m[0]] || BACK[m[0]]);
+  const newGame = () => { game = { qs: shuffle(visible).slice(0, 10), i: 0, ok: 0, lock: false }; ask(); };
+  const ask = () => {
+    if (game.i >= game.qs.length) { const S = anSt(); const k = mode === "bul" ? "bul" : "ne"; if (S.best[k] == null || game.ok > S.best[k]) S.best[k] = game.ok; save();
+      side.innerHTML = `<div class="card stack"><h2>Bitti: ${game.ok}/10</h2><p>${game.ok >= 9 ? "Harika, bu kasları biliyorsun." : game.ok >= 7 ? "İyi gidiyor. Yanlış yaptıklarını Keşfet modunda bir kez daha oku." : "Önce Keşfet modunda her kasın ipucunu oku, sonra tekrar dene."}</p><button class="btn" id="again">Tekrar oyna</button></div>`; $("#again").onclick = newGame; return; }
+    const m = game.qs[game.i]; game.lock = false; sel = null;
+    const v = viewOf(m[0]); if (v !== view) setView(v); else mark();
+    if (mode === "bul") side.innerHTML = `<div class="card stack"><div class="small muted">Soru ${game.i + 1}/10 · Doğru ${game.ok}</div><h2 style="margin:0">Bul: ${esc(m[1])}</h2><div class="muted">${esc(m[2])} · ${esc(m[4])}</div><p class="small">Haritada bu kasa dokun.</p><div id="fb"></div></div>`;
+    else {
+      sel = m[0]; mark();
+      const opts = anOpts(m[1], visible.map(x => x[1]));
+      side.innerHTML = `<div class="card stack"><div class="small muted">Soru ${game.i + 1}/10 · Doğru ${game.ok}</div><h2 style="margin:0">Haritada işaretli kas hangisi?</h2><div class="opts">${opts.map((o, i) => `<button class="opt" data-o="${esc(o)}"><b>${L[i]}</b><span>${esc(o)}</span></button>`).join("")}</div><div id="fb"></div></div>`;
+      $$(".opt", side).forEach(b => b.onclick = () => { if (game.lock) return; game.lock = true; const ok = b.dataset.o === m[1]; if (ok) game.ok++; $$(".opt", side).forEach(x => { x.disabled = true; if (x.dataset.o === m[1]) x.classList.add("right"); else if (x === b) x.classList.add("wrong"); }); fb(m, ok); });
+    }
+  };
+  const fb = (m, ok) => { $("#fb").innerHTML = `<div class="callout ${ok ? "ok" : "hot"}"><b>${ok ? "Doğru!" : "Yanlış."}</b> ${esc(m[1])}: ${esc(m[6])}<br><span class="small">${esc(m[8])}</span></div><button class="btn" id="nx">Sonraki</button>`; $("#nx").onclick = () => { game.i++; ask(); }; $("#nx").focus(); };
+  const tap = id => {
+    if (mode === "kesfet") { pick(id); return; }
+    if (mode === "bul" && game && !game.lock && game.i < game.qs.length) {
+      const m = game.qs[game.i]; game.lock = true; const ok = id === m[0]; if (ok) game.ok++;
+      $$("path.ms", fig).forEach(p => { if (p.dataset.id === m[0]) p.classList.add("ok"); else if (p.dataset.id === id && !ok) p.classList.add("bad"); });
+      fb(m, ok);
+    }
+  };
+  const setMode = m => { mode = m; $$("#mm button").forEach(b => b.setAttribute("aria-pressed", b.dataset.m === m)); sel = null; drawFig(); if (m === "kesfet") { game = null; showInfo(); } else newGame(); };
+  $("#lt").onclick = () => { labels = !labels; $("#lt").setAttribute("aria-pressed", labels); if (mode !== "kesfet") toast("Etiketler oyun sırasında gizli"); drawFig(); };
+  $$("#mv button").forEach(b => b.onclick = () => { if (mode !== "kesfet") return toast("Oyun sırasında yüz otomatik değişir"); setView(b.dataset.v); });
+  $$("#mm button").forEach(b => b.onclick = () => setMode(b.dataset.m));
+  drawFig(); showInfo();
+}
+
+/* ---- iskelet ---- */
+function anSkel(r, main) {
+  let mode = "kesfet", sel = null, game = null, labels = true;
+  const spine = [["Servikal (boyun)", 7, "Lordoz (içe)", "#2457A6"], ["Torakal (sırt)", 12, "Kifoz (dışa); kaburgalar buraya bağlanır", "#8F5A00"], ["Lumbar (bel)", 5, "Lordoz (içe)", "#1E7650"], ["Sakrum", "5 kaynaşmış", "Kifoz", "#B8452A"], ["Koksiks", "4 kaynaşmış", "–", "#5A655F"]];
+  const pg = page(main, `<div class="stack"><div class="uhead"><span class="eyebrow">Anatomi kampı</span><h1>İskelet: bilmen gereken 21 kemik</h1><p class="muted">Yetişkin iskeleti yaklaşık 206 kemik. Sınav bunlardan ünitedeki 20 kadarını soruyor. Kemiğe dokun ya da oyunla sına.</p></div>
+    ${anTabs(r)}
+    <div class="chipsel" id="mm"><button data-m="kesfet" aria-pressed="true">Keşfet</button><button data-m="bul" aria-pressed="false">Oyun: Kemiği bul</button><button data-m="ne" aria-pressed="false">Oyun: Bu hangi kemik?</button><button id="lt" aria-pressed="true">Etiketler</button></div>
+    <div class="anwrap"><div class="anfig" id="fig"></div><div class="stack" id="side"></div></div>
+    <section class="grid2" style="align-items:start">
+      <div class="card stack"><h2>Omurga: 7 · 12 · 5 · 5 · 4</h2>
+        <svg viewBox="0 0 160 300" class="spinesv" role="img" aria-label="Omurga yandan görünüm">
+          <path d="M70,10 C82,40 82,60 70,75" stroke="#2457A6"/><path d="M70,75 C50,110 50,150 72,175" stroke="#8F5A00"/><path d="M72,175 C86,195 86,220 74,232" stroke="#1E7650"/><path d="M74,232 C60,250 62,268 72,280" stroke="#B8452A"/><path d="M72,280 C76,286 78,290 76,295" stroke="#5A655F"/>
+          <text x="92" y="45">Servikal 7</text><text x="10" y="125">Torakal</text><text x="10" y="140">12</text><text x="92" y="208">Lumbar 5</text><text x="88" y="262">Sakrum 5</text><text x="88" y="294">Koksiks 4</text>
+          <text x="2" y="290" class="ax">← ön</text><text x="120" y="12" class="ax">arka →</text></svg>
+        <div class="tw"><table><thead><tr><th>Bölge</th><th>Omur</th><th>Kavis</th></tr></thead><tbody>${spine.map(s => `<tr><td><b style="color:${s[3]}">${s[0]}</b></td><td>${s[1]}</td><td>${s[2]}</td></tr>`).join("")}</tbody></table></div>
+        <p class="small"><b>Hafıza:</b> Sabah 7 kahvaltı, öğlen 12 yemek, akşam 5 çay. Lordoz = <b>L</b>umbar ve servikal içe; kifoz = sırt kamburu dışa.</p></div>
+      <div class="card stack"><h2>Kemik tipleri</h2><div class="tw"><table><thead><tr><th>Tip</th><th>Örnek</th></tr></thead><tbody>
+        <tr><td><b>Uzun</b> (boy > en)</td><td>Humerus, femur, tibia, parmak kemikleri</td></tr><tr><td><b>Kısa</b></td><td>Karpal (el bileği), tarsal (ayak bileği)</td></tr>
+        <tr><td><b>Yassı</b></td><td>Kafatası kubbesi, kaburga, kürek kemiği, sternum, kalça kemiği</td></tr><tr><td><b>Düzensiz</b></td><td>Omurlar, alt ve üst çene</td></tr>
+        <tr><td><b>Susamsı</b></td><td>Patella (tendon içinde)</td></tr><tr><td><b>Havalı</b></td><td>Alın kemiği, üst çene</td></tr></tbody></table></div>
+        <h3>Eklem tipleri</h3><ul><li><b>Top-yuva:</b> omuz, kalça (3 düzlem, en hareketli)</li><li><b>Menteşe:</b> dirsek, diz (sadece fleksiyon-ekstansiyon)</li><li><b>Pivot:</b> radioulnar, 1.-2. boyun omuru (dönme)</li><li><b>Kondiloid:</b> el bileği · <b>Eyer:</b> başparmak tabanı · <b>Kayma:</b> el-ayak bileği kemikleri arası</li></ul>
+        <p class="small"><b>Tendon</b> kası kemiğe, <b>ligament</b> kemiği kemiğe bağlar. "Tendon = Tutar kası", "Ligament = Lego gibi kemikleri birleştirir".</p></div>
+    </section>
+    <section class="card stack"><h2>Tüm kemikler</h2><div class="chipsel wrap" id="ml">${AB.map(b => `<button data-id="${b[0]}" aria-pressed="false">${esc(b[1])}</button>`).join("")}</div></section></div>`);
+  const fig = $("#fig", pg), side = $("#side", pg);
+  const mark = () => { $$("path.bn", fig).forEach(p => { p.classList.toggle("sel", p.dataset.id === sel); p.classList.remove("ok", "bad"); }); $$("g.lb", fig).forEach(g => g.classList.toggle("sel", g.dataset.id === sel)); };
+  const drawFig = () => { fig.innerHTML = bodySvg("iskelet", { labels: labels && mode === "kesfet" }); $$("path.bn, g.lb", fig).forEach(p => p.onclick = () => tapB(p.dataset.id)); mark(); };
+  const info = () => { if (mode !== "kesfet") return; const b = sel && ABI[sel]; side.innerHTML = b ? `<div class="card stack ancard"><span class="pill">${esc(b[3])} kemik</span><h2 style="margin:0">${esc(b[1])}</h2><div class="muted">${esc(b[2])}</div><p>${esc(b[4])}</p><div class="callout ok"><b>Aklında kalsın:</b> ${esc(b[5])}</div></div>` : `<div class="card stack"><h2>Kemiğe dokun</h2><p>Kürek kemiği (scapula) aslında arkada; burada ön görünümün arkasında soluk çizildi. Kafatası, sternum ve omurga orta hatta.</p><p class="small muted">Anatomik duruş: avuçlar öne bakar, bu yüzden radius dışta (başparmak tarafı).</p></div>`; };
+  const pick = id => { sel = id; mark(); info(); if (window.innerWidth < 900) side.scrollIntoView({ behavior: "smooth", block: "nearest" }); };
+  const ask = () => {
+    if (game.i >= game.qs.length) { const S = anSt(); S.best["k" + mode] = Math.max(S.best["k" + mode] || 0, game.ok); save(); side.innerHTML = `<div class="card stack"><h2>Bitti: ${game.ok}/10</h2><button class="btn" id="again">Tekrar oyna</button></div>`; $("#again").onclick = newGame; return; }
+    const b = game.qs[game.i]; game.lock = false; sel = null; mark();
+    if (mode === "bul") side.innerHTML = `<div class="card stack"><div class="small muted">Soru ${game.i + 1}/10 · Doğru ${game.ok}</div><h2 style="margin:0">Bul: ${esc(b[1])}</h2><div class="muted">${esc(b[2])}</div><div id="fb"></div></div>`;
+    else { sel = b[0]; mark(); const opts = anOpts(b[1], AB.map(x => x[1]));
+      side.innerHTML = `<div class="card stack"><div class="small muted">Soru ${game.i + 1}/10 · Doğru ${game.ok}</div><h2 style="margin:0">İşaretli kemik hangisi?</h2><div class="opts">${opts.map((o, i) => `<button class="opt" data-o="${esc(o)}"><b>${L[i]}</b><span>${esc(o)}</span></button>`).join("")}</div><div id="fb"></div></div>`;
+      $$(".opt", side).forEach(x => x.onclick = () => { if (game.lock) return; game.lock = true; const ok = x.dataset.o === b[1]; if (ok) game.ok++; $$(".opt", side).forEach(y => { y.disabled = true; if (y.dataset.o === b[1]) y.classList.add("right"); else if (y === x) y.classList.add("wrong"); }); fb(b, ok); }); }
+  };
+  const fb = (b, ok) => { $("#fb").innerHTML = `<div class="callout ${ok ? "ok" : "hot"}"><b>${ok ? "Doğru!" : "Yanlış."}</b> ${esc(b[1])} = ${esc(b[2])}. <span class="small">${esc(b[5])}</span></div><button class="btn" id="nx">Sonraki</button>`; $("#nx").onclick = () => { game.i++; ask(); }; };
+  const newGame = () => { game = { qs: shuffle(AB).slice(0, 10), i: 0, ok: 0 }; ask(); };
+  const setMode = m => { mode = m; $$("#mm button[data-m]").forEach(b => b.setAttribute("aria-pressed", b.dataset.m === m)); sel = null; drawFig(); if (m === "kesfet") { game = null; info(); } else newGame(); };
+  $("#lt").onclick = () => { labels = !labels; $("#lt").setAttribute("aria-pressed", labels); if (mode !== "kesfet") toast("Etiketler oyun sırasında gizli"); drawFig(); };
+  const tapB = id => {
+    if (mode === "kesfet") return pick(id);
+    if (mode === "bul" && game && !game.lock && game.i < game.qs.length) { const b = game.qs[game.i]; game.lock = true; const ok = id === b[0]; if (ok) game.ok++; $$("path.bn", fig).forEach(q => { if (q.dataset.id === b[0]) q.classList.add("ok"); else if (q.dataset.id === id && !ok) q.classList.add("bad"); }); fb(b, ok); }
+  };
+  $$("#mm button[data-m]").forEach(b => b.onclick = () => setMode(b.dataset.m));
+  $$("#ml button").forEach(b => b.onclick = () => { if (mode !== "kesfet") setMode("kesfet"); pick(b.dataset.id); });
+  drawFig(); info();
+}
+
+/* ---- yön ve düzlem ---- */
+function anYon(r, main) {
+  const stick = (anim) => anim;
+  const pg = page(main, `<div class="stack"><div class="uhead"><span class="eyebrow">Anatomi kampı</span><h1>Yönler, düzlemler ve hareketler</h1><p class="muted">Bütün anatomi dili <b>anatomik duruşa</b> göre konuşur: ayakta dik, yüz öne, kollar yanda, <b>avuç içleri ve ayaklar öne</b>.</p></div>
+    ${anTabs(r)}
+    <section class="card stack"><h2>1. Yön terimleri</h2><p class="small muted">Bir terime dokun, figürde ok olarak görünsün.</p>
+      <div class="anwrap"><div class="anfig"><svg class="body" viewBox="0 0 200 460" id="dirsv"><path class="sil" d="${SIL}"/><path class="sil" transform="translate(200 0) scale(-1 1)" d="${SIL}"/><line x1="100" y1="0" x2="100" y2="460" class="midl"/><text x="104" y="456" class="ax">orta hat</text><g id="arr"></g></svg></div>
+      <div class="stack"><div class="chipsel wrap" id="dl">${ADIR.slice(0, 8).map((d, i) => `<button data-i="${i}" aria-pressed="false">${esc(d[0])}</button>`).join("")}</div><div id="dinfo" class="callout">Bir terim seç.</div>
+      <div class="tw"><table><thead><tr><th>Terim</th><th>Anlam</th><th>Örnek</th></tr></thead><tbody>${ADIR.map(d => `<tr><td><b>${esc(d[0])}</b></td><td>${esc(d[1])}</td><td class="small">${esc(d[2])}</td></tr>`).join("")}</tbody></table></div>
+      <p class="small"><b>Hafıza:</b> <b>Pro</b>ksimal = <b>pro</b>je merkezine yakın (gövde), <b>Dis</b>tal = <b>dis</b>tant (uzak). <b>Med</b>ial = <b>med</b>ya ortası. <b>Lat</b>eral = <b>lat</b>a (yana) açılır.</p></div></div></section>
+    <section class="card stack"><h2>2. Üç hareket düzlemi</h2>
+      <div class="g3 planes">
+        <div class="plane sag"><svg viewBox="0 0 120 140" aria-label="Sagital düzlem animasyonu: yandan kol fleksiyonu"><rect x="2" y="2" width="116" height="136" rx="10" class="pbg"/><circle cx="60" cy="24" r="10" class="stk"/><line x1="60" y1="34" x2="60" y2="88" class="stk"/><line x1="60" y1="88" x2="52" y2="130" class="stk"/><line x1="60" y1="88" x2="66" y2="130" class="stk"/><g class="armS"><line x1="60" y1="44" x2="60" y2="84" class="stk arm"/></g><text x="8" y="132" class="ax">yandan</text></svg>
+          <h3>Sagital = <u>S</u>elam ver</h3><p class="small">Vücudu <b>sağ-sol</b> ikiye böler. Hareket <b>öne-arkaya</b>.</p><p class="small"><b>Hareketler:</b> fleksiyon, ekstansiyon, dorsi/plantar fleksiyon.</p><p class="small"><b>Egzersiz:</b> biceps curl, squat, lunge, front raise, crunch, leg curl.</p></div>
+        <div class="plane fro"><svg viewBox="0 0 120 140" aria-label="Frontal düzlem animasyonu: önden kol abduksiyonu"><rect x="2" y="2" width="116" height="136" rx="10" class="pbg"/><circle cx="60" cy="24" r="10" class="stk"/><line x1="60" y1="34" x2="60" y2="88" class="stk"/><line x1="60" y1="88" x2="50" y2="130" class="stk"/><line x1="60" y1="88" x2="70" y2="130" class="stk"/><g class="armF1"><line x1="54" y1="44" x2="54" y2="84" class="stk arm"/></g><g class="armF2"><line x1="66" y1="44" x2="66" y2="84" class="stk arm"/></g><text x="8" y="132" class="ax">önden</text></svg>
+          <h3>Frontal = <u>F</u>il kanadı</h3><p class="small">Vücudu <b>ön-arka</b> ikiye böler. Hareket <b>yana</b>.</p><p class="small"><b>Hareketler:</b> abduksiyon, adduksiyon, lateral fleksiyon, elevasyon/depresyon, inversiyon/eversiyon.</p><p class="small"><b>Egzersiz:</b> lateral raise, lat pulldown, side lunge, jumping jack, side bend, shrug.</p></div>
+        <div class="plane tra"><svg viewBox="0 0 120 140" aria-label="Horizontal düzlem animasyonu: üstten gövde rotasyonu"><rect x="2" y="2" width="116" height="136" rx="10" class="pbg"/><g class="rotH"><ellipse cx="60" cy="70" rx="40" ry="13" class="stk"/><circle cx="60" cy="70" r="9" class="stk"/><path d="M60,52 l-5,8 h10 Z" class="nose"/></g><text x="8" y="132" class="ax">üstten</text></svg>
+          <h3>Horizontal (transvers) = <u>H</u>alay dönüşü</h3><p class="small">Vücudu <b>üst-alt</b> ikiye böler. Hareket <b>dönme</b>.</p><p class="small"><b>Hareketler:</b> iç/dış rotasyon, pronasyon/supinasyon, yatay add./abd., retraksiyon/protraksiyon.</p><p class="small"><b>Egzersiz:</b> Russian twist, wood chop, chest fly, reverse fly, band rotasyon.</p></div>
+      </div>
+      <div class="callout"><b>Kural:</b> Düzlemi önce bul, adı kendiliğinden gelir. Sagitalde öne giden = fleksiyon, geriye = ekstansiyon. Frontalde dışa = abduksiyon, içe = adduksiyon. <b>Diz istisna:</b> diz bükülünce topuk geriye gider ama bu da diz fleksiyonu. Düzlemler kişiyle birlikte döner.</div></section>
+    <section class="card stack"><h2>3. Hareket sözlüğü</h2><p class="small muted">Her satırı oku ve <b>kendin dene</b> sütunundakini gerçekten yap. Hareketi bedenine öğretmek, ezberden 3 kat kalıcı.</p>
+      <div class="tw"><table><thead><tr><th>Hareket</th><th>Anlamı</th><th>Düzlem</th><th>Kendin dene</th></tr></thead><tbody>${AMOV.map(m => `<tr><td><b>${esc(m[0])}</b></td><td>${esc(m[1])}</td><td>${plChip(m[2])}</td><td class="small">${esc(m[3])}</td></tr>`).join("")}</tbody></table></div></section>
+    <section class="card stack"><h2>4. Kendini sına</h2><div class="chipsel" id="qm"><button data-m="y" aria-pressed="true">Yön testi</button><button data-m="d" aria-pressed="false">Hareket → düzlem</button></div><div id="qz"></div></section></div>`);
+  /* yön okları */
+  const AR = {
+    0: [[100, 140, 100, 140, "Anterior: figür bize bakıyor; ön yüz = gördüğün taraf. (Tibialis anterior, rectus abdominis önde.)", "dot"]],
+    1: [[100, 140, 100, 140, "Posterior: figürün arkası, bizden uzak taraf (gluteus, hamstring, latissimus).", "x"]],
+    2: [[150, 120, 150, 30, "Superior: başa doğru, yukarı."]],
+    3: [[150, 300, 150, 420, "Inferior: ayağa doğru, aşağı."]],
+    4: [[30, 200, 92, 200, "Medial: orta hatta doğru (içe)."]],
+    5: [[92, 200, 30, 200, "Lateral: orta hattan uzağa (dışa)."]],
+    6: [[38, 240, 56, 90, "Proksimal: gövdeye, uzvun başladığı yere doğru."]],
+    7: [[56, 90, 38, 240, "Distal: gövdeden uzağa, uzvun ucuna doğru."]]
+  };
+  $$("#dl button").forEach(b => b.onclick = () => {
+    $$("#dl button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    const a = AR[b.dataset.i][0];
+    $("#arr").innerHTML = a[5] === "dot" ? `<circle cx="100" cy="140" r="14" class="arw"/><circle cx="100" cy="140" r="4" class="arwf"/>` : a[5] === "x" ? `<circle cx="100" cy="140" r="14" class="arw"/><path d="M92,132 L108,148 M108,132 L92,148" class="arw"/>` : `<line x1="${a[0]}" y1="${a[1]}" x2="${a[2]}" y2="${a[3]}" class="arw" marker-end="url(#ah)"/>`;
+    if (!$("#ah")) $("#dirsv").insertAdjacentHTML("afterbegin", '<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" class="arwf"/></marker></defs>');
+    $("#dinfo").textContent = a[4];
+  });
+  /* testler */
+  let qm = "y";
+  const run = () => {
+    const items = qm === "y" ? shuffle(ADQ).slice(0, 10).map(q => ({ q: q[0], a: q[1], o: shuffle(ADSET[q[2]]) })) : shuffle(AMOV.filter(m => m[2] !== "Birden fazla")).slice(0, 10).map(m => ({ q: `${m[0]} (${m[1].toLocaleLowerCase("tr")}) hangi düzlemde olur?`, a: m[2], o: ["Sagital", "Frontal", "Horizontal"] }));
+    let i = 0, ok = 0;
+    const show = () => {
+      if (i >= items.length) { $("#qz").innerHTML = `<div class="callout ${ok >= 8 ? "ok" : "hot"}"><b>${ok}/10.</b> ${ok >= 8 ? "Bu konu tamam." : "Tabloyu bir kez daha oku, hareketleri kendin yaparak tekrar dene."}</div><button class="btn" id="qr">Yeni 10 soru</button>`; $("#qr").onclick = run; return; }
+      const it = items[i];
+      $("#qz").innerHTML = `<div class="small muted">Soru ${i + 1}/10 · Doğru ${ok}</div><p style="font-size:18px;margin:6px 0">${esc(it.q)}</p><div class="opts">${it.o.map((o, j) => `<button class="opt" data-o="${esc(o)}"><b>${L[j]}</b><span>${esc(o)}</span></button>`).join("")}</div><div id="qf"></div>`;
+      $$("#qz .opt").forEach(b => b.onclick = () => { const good = b.dataset.o === it.a; if (good) ok++; $$("#qz .opt").forEach(x => { x.disabled = true; if (x.dataset.o === it.a) x.classList.add("right"); else if (x === b) x.classList.add("wrong"); }); $("#qf").innerHTML = `<button class="btn" id="qn" style="margin-top:8px">Sonraki</button>`; $("#qn").onclick = () => { i++; show(); }; });
+    };
+    show();
+  };
+  $$("#qm button").forEach(b => b.onclick = () => { qm = b.dataset.m; $$("#qm button").forEach(x => x.setAttribute("aria-pressed", x === b)); run(); });
+  run();
+}
+function plChip(p) { const c = { Sagital: "sag", Frontal: "fro", Horizontal: "tra" }[p]; return c ? `<span class="pill pl-${c}">${p}</span>` : `<span class="pill">${esc(p)}</span>`; }
+
+/* ---- hareket zinciri ---- */
+function anZincir(r, main) {
+  page(main, `<div class="stack"><div class="uhead"><span class="eyebrow">Anatomi kampı</span><h1>Hareket zinciri: egzersiz → eklem → hareket → düzlem → kas</h1><p class="muted">Quizdeki fotoğraf sorularının hepsi bu kalıp. Her egzersizde 4 adımı sırayla çöz. Kaldırma (yukarı) fazına göre düşün; indirirken aynı kas eksantrik çalışır.</p></div>
+    ${anTabs(r)}<div id="zc"></div>
+    <section class="card stack"><h2>Fotoğraftan hareket bulma yöntemi</h2><ol class="steps"><li><b>Hangi eklem?</b> Hareket eden uzvun bağlı olduğu eklem (kol hareket ettiyse omuz).</li><li><b>Hangi yön?</b> Öne-geriye = sagital, yana = frontal, dönme = horizontal.</li><li><b>Hangi isim?</b> Sagitalde öne = fleksiyon, geriye = ekstansiyon; frontalde dışa = abduksiyon, içe = adduksiyon.</li><li><b>Hangi kas?</b> Hareketin <b>tersinde</b> duran kas değil, hareketi yapan taraftaki kas: kolu öne kaldıran öndeki deltoid.</li></ol>
+    <p class="small">Daha fazla egzersiz analizi için <a href="#atlas">Hareket atlası</a>.</p></section></div>`);
+  let qs = shuffle(ACH).slice(0, 10), i = 0, step = 0, score = 0, tot = 0;
+  const STEPS = [["Hangi eklem hareket ediyor?", 1], ["Hangi hareket?", 2], ["Hangi düzlemde?", 3], ["Ana (agonist) kas hangisi?", 4]];
+  const optsFor = (q, s) => {
+    if (s === 1) return anOpts(q[1], AEKLEM);
+    if (s === 2) { const pool = [...new Set(ACH.map(x => x[2]))]; return anOpts(q[2], pool); }
+    if (s === 3) return ["Sagital", "Frontal", "Horizontal"];
+    return anOpts(q[4], AKAS.filter(k => !q[5].includes(k)));
+  };
+  const draw = () => {
+    if (i >= qs.length) { const S = anSt(); S.best.zincir = Math.max(S.best.zincir || 0, score); save(); $("#zc").innerHTML = `<div class="card stack"><h2>Bitti: ${score}/${tot} adım doğru</h2><p>${score / tot >= .85 ? "Fotoğraf sorularına hazırsın." : "Yanlış adımlarda genelde eklem ya da düzlem karışıyor. Yön ve düzlem sayfasındaki animasyonlara bir kez daha bak."}</p><button class="btn" id="zr">Yeni 10 egzersiz</button></div>`; $("#zr").onclick = () => { qs = shuffle(ACH).slice(0, 10); i = 0; step = 0; score = 0; tot = 0; draw(); }; return; }
+    const q = qs[i]; const done = [];
+    for (let s = 0; s < step; s++) done.push(`<span class="pill ok">${esc(q[STEPS[s][1]])}</span>`);
+    const st = STEPS[step]; const opts = optsFor(q, st[1]); const ans = q[st[1]];
+    $("#zc").innerHTML = `<div class="card stack"><div class="small muted">Egzersiz ${i + 1}/10 · Adım ${step + 1}/4 · Doğru ${score}/${tot}</div><h2 style="margin:0">${esc(q[0])}</h2><div class="row wrap">${done.join('<span class="muted">→</span>')}</div>
+      <p style="font-size:18px;margin:4px 0"><b>${st[0]}</b></p><div class="opts">${opts.map((o, j) => `<button class="opt" data-o="${esc(o)}"><b>${L[j]}</b><span>${st[1] === 3 ? plChip(o) : esc(o)}</span></button>`).join("")}</div><div id="zf"></div></div>`;
+    $$("#zc .opt").forEach(b => b.onclick = () => {
+      const ok = b.dataset.o === ans; tot++; if (ok) score++;
+      $$("#zc .opt").forEach(x => { x.disabled = true; if (x.dataset.o === ans) x.classList.add("right"); else if (x === b) x.classList.add("wrong"); });
+      const last = step === 3; const extra = last && q[5].length ? ` Yardımcı kaslar: ${q[5].join(", ")}.` : "";
+      $("#zf").innerHTML = `${last ? `<div class="callout ok"><b>${esc(q[0])}:</b> ${esc(q[1])} ${esc(q[2].toLocaleLowerCase("tr"))}, ${esc(q[3])} düzlem, agonist ${esc(q[4])}.${esc(extra)}</div>` : ""}<button class="btn" id="zn" style="margin-top:8px">${last ? "Sonraki egzersiz" : "Sonraki adım"}</button>`;
+      $("#zn").onclick = () => { if (last) { i++; step = 0; } else step++; draw(); };
+    });
+  };
+  draw();
+}
+
+/* ---- isim çözücü ---- */
+function anIsim(r, main) {
+  page(main, `<div class="stack"><div class="uhead"><span class="eyebrow">Anatomi kampı</span><h1>İsim çözücü: Latince kökler</h1><p class="muted">25 kökü bilen, kas isimlerinin çoğunu ezberlemeden çözer. Önce tabloyu oku, sonra oyunu oyna.</p></div>
+    ${anTabs(r)}
+    <section class="grid2" style="align-items:start"><div class="card stack"><h2>Kök sözlüğü</h2><div class="tw"><table><thead><tr><th>Kök</th><th>Anlamı</th></tr></thead><tbody>${AROOT.map(x => `<tr><td><b>${esc(x[0])}</b></td><td>${esc(x[1])}</td></tr>`).join("")}</tbody></table></div></div>
+      <div class="card stack"><h2>Oyun: ismi çöz</h2><div id="iz"></div>
+      <h3>Kendi ismini parçala</h3><p class="small muted">Bir kas adı yaz, kökleri bulayım (ör. "vastus medialis").</p><input id="ip" type="search" placeholder="Kas adı"><div id="io" class="small"></div></div></section></div>`);
+  let qs = shuffle(ANAME).slice(0, 10), i = 0, ok = 0;
+  const draw = () => {
+    if (i >= qs.length) { const S = anSt(); S.best.isim = Math.max(S.best.isim || 0, ok); save(); $("#iz").innerHTML = `<div class="callout ${ok >= 8 ? "ok" : "hot"}"><b>${ok}/10</b></div><button class="btn" id="ir">Tekrar</button>`; $("#ir").onclick = () => { qs = shuffle(ANAME).slice(0, 10); i = 0; ok = 0; draw(); }; return; }
+    const q = qs[i]; const opts = anOpts(q[1], ANAME.map(x => x[1]));
+    $("#iz").innerHTML = `<div class="small muted">Soru ${i + 1}/10 · Doğru ${ok}</div><p style="font-size:20px;margin:4px 0"><b>${esc(q[0])}</b> ne demek?</p><div class="opts">${opts.map((o, j) => `<button class="opt" data-o="${esc(o)}"><b>${L[j]}</b><span>${esc(o)}</span></button>`).join("")}</div><div id="if"></div>`;
+    $$("#iz .opt").forEach(b => b.onclick = () => { const g = b.dataset.o === q[1]; if (g) ok++; $$("#iz .opt").forEach(x => { x.disabled = true; if (x.dataset.o === q[1]) x.classList.add("right"); else if (x === b) x.classList.add("wrong"); }); $("#if").innerHTML = `<div class="small" style="margin-top:6px">${decode(q[0])}</div><button class="btn" id="in" style="margin-top:8px">Sonraki</button>`; $("#in").onclick = () => { i++; draw(); }; });
+  };
+  const RMAP = [["maximus", "en büyük"], ["medius", "orta"], ["minimus", "en küçük"], ["major", "büyük"], ["minor", "küçük"], ["longus", "uzun"], ["brevis", "kısa"], ["magnus", "büyük"], ["rectus", "düz"], ["oblique", "eğik"], ["obliquus", "eğik"], ["transversus", "enine"], ["biceps", "iki başlı"], ["triceps", "üç başlı"], ["quadriceps", "dört başlı"], ["brachii", "kol"], ["brachialis", "kol"], ["femoris", "uyluk"], ["abdominis", "karın"], ["pectoralis", "göğüs"], ["dorsi", "sırt"], ["latissimus", "en geniş"], ["gluteus", "kalça"], ["erector", "dik tutan"], ["spinae", "omurga"], ["serratus", "testere dişli"], ["anterior", "ön"], ["posterior", "arka"], ["lateralis", "dış yan"], ["medialis", "iç yan"], ["tensor", "gerici"], ["vastus", "geniş"], ["teres", "yuvarlak"], ["tibialis", "kaval kemiği"], ["supraspinatus", "diken üstü"], ["infraspinatus", "diken altı"], ["subscapularis", "kürek altı"], ["adductor", "yaklaştırıcı"], ["external", "dış"], ["internal", "iç"], ["fasciae", "fasya"], ["latae", "geniş/yan"], ["radialis", "radius"], ["deltoideus", "delta biçimli"], ["deltoid", "delta biçimli"], ["trapezius", "trapez biçimli"], ["sartorius", "terzi"], ["soleus", "pisi balığı (yassı)"], ["gastrocnemius", "bacağın karnı"], ["peroneus", "fibula"], ["quadratus", "dört köşe"], ["lumborum", "bel"]];
+  const decode = s => s.split(/\s+/).map(w => { const f = RMAP.find(x => x[0] === w.toLowerCase()); return `<b>${esc(w)}</b> = ${f ? esc(f[1]) : "?"}`; }).join(" · ");
+  $("#ip").oninput = e => { const v = e.target.value.trim(); $("#io").innerHTML = v ? decode(v) : ""; };
+  draw();
+}
+
+/* ---- aralıklı tekrar kartları (Leitner) ---- */
+function anKart(r, main) {
+  const deck = [
+    ...AM.map(m => ({ id: "m:" + m[0], g: "Kas", f: m[1], fs: "Nerede, ne yapar, hangi egzersiz?", b: `<b>${esc(m[2])}</b><br><b>Nerede:</b> ${esc(m[5])}<br><b>Ne yapar:</b> ${esc(m[6])}<br><b>Egzersiz:</b> ${esc(m[7])}<div class="callout ok small" style="margin-top:8px">${esc(m[8])}</div>` })),
+    ...AB.map(b => ({ id: "b:" + b[0], g: "Kemik", f: b[1], fs: "Türkçesi ve özelliği?", b: `<b>${esc(b[2])}</b> · ${esc(b[3])} kemik<br>${esc(b[4])}<div class="callout ok small" style="margin-top:8px">${esc(b[5])}</div>` })),
+    ...ADIR.map((d, i) => ({ id: "t:d" + i, g: "Yön", f: d[0], fs: "Anlamı?", b: `<b>${esc(d[1])}</b><br>${esc(d[2])}` })),
+    ...AMOV.map((m, i) => ({ id: "t:m" + i, g: "Hareket", f: m[0], fs: "Anlamı ve düzlemi?", b: `<b>${esc(m[1])}</b><br>Düzlem: ${plChip(m[2])}<br><span class="small">Kendin dene: ${esc(m[3])}</span>` }))
+  ];
+  const S = anSt(); let grp = "", cur = null, open = false;
+  page(main, `<div class="stack"><div class="uhead"><span class="eyebrow">Anatomi kampı</span><h1>Kartlar: kutu sistemiyle tekrar</h1><p class="muted">Bildiğin kart bir üst kutuya çıkar ve daha seyrek gelir. Bilemediğin 1. kutuya döner ve sık gelir. 3. kutuya çıkan "öğrenildi" sayılır.</p></div>
+    ${anTabs(r)}
+    <div class="chipsel" id="kg">${["", "Kas", "Kemik", "Yön", "Hareket"].map(g => `<button data-g="${g}" aria-pressed="${g === ""}">${g || "Hepsi"}</button>`).join("")}</div>
+    <div id="kb" class="row wrap small"></div><div id="kc"></div></div>`);
+  const pickCard = () => {
+    const l = deck.filter(c => !grp || c.g === grp);
+    const w = l.map(c => { const b = S.box[c.id] || 0; return { c, w: [6, 5, 3, 1.5, .7, .3][Math.min(b, 5)] }; });
+    let t = Math.random() * w.reduce((a, x) => a + x.w, 0);
+    for (const x of w) { t -= x.w; if (t <= 0 && x.c !== cur) return x.c; }
+    return w[0].c;
+  };
+  const stats = () => { const l = deck.filter(c => !grp || c.g === grp); const n = [0, 0, 0, 0, 0, 0]; l.forEach(c => n[Math.min(S.box[c.id] || 0, 5)]++); $("#kb").innerHTML = n.map((v, i) => `<span class="pill ${i >= 3 ? "ok" : ""}">${i === 0 ? "Yeni" : i + ". kutu"}: ${v}</span>`).join(""); };
+  const draw = () => {
+    stats();
+    $("#kc").innerHTML = `<div class="card stack ankart"><div class="row between"><span class="pill">${esc(cur.g)}</span><span class="small muted">kutu ${S.box[cur.id] || 0}</span></div><div class="kf">${esc(cur.f)}</div><div class="small muted">${esc(cur.fs)}</div>
+      ${open ? `<div class="kbk">${cur.b}</div><div class="row"><button class="btn ghost" id="kn">✗ Bilemedim</button><button class="btn" id="ky">✓ Bildim</button></div>` : `<button class="btn" id="ko">Cevabı göster (boşluk)</button>`}</div>`;
+    if (open) { $("#ky").onclick = () => ans(true); $("#kn").onclick = () => ans(false); } else $("#ko").onclick = () => { open = true; draw(); };
+  };
+  const ans = ok => { S.box[cur.id] = ok ? Math.min((S.box[cur.id] || 0) + 1, 5) : 1; save(); cur = pickCard(); open = false; draw(); };
+  $$("#kg button").forEach(b => b.onclick = () => { grp = b.dataset.g; $$("#kg button").forEach(x => x.setAttribute("aria-pressed", x === b)); cur = pickCard(); open = false; draw(); });
+  KEYS = e => { if (e.key === " ") { e.preventDefault(); if (!open) { open = true; draw(); } } else if (open && (e.key === "1" || e.key === "ArrowLeft")) ans(false); else if (open && (e.key === "2" || e.key === "ArrowRight")) ans(true); };
+  cur = pickCard(); draw();
 }
 
 /* ============ extras: özet & notlar, ezber, karma, yıldızlı, sözlük, istatistik, ayarlar, program ============ */
