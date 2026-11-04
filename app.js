@@ -26,8 +26,10 @@ const UCAT2 = { u08: "bes", u13: "fiz" };
 
 /* ---------- persistent store (per browser) ---------- */
 const KEY = "fcm-v1";
-let ST = { read: {}, scroll: {}, uq: {}, ah: {}, wrong: {}, den: { st: [{}, {}, {}], done: [false, false, false], instant: false, t: [0, 0, 0] }, hist: [], last: null, theme: null, cards: {}, atq: { ok: 0, n: 0 } };
+let ST = { read: {}, scroll: {}, uq: {}, ah: {}, wrong: {}, den: { st: [{}, {}, {}], done: [false, false, false], instant: false, t: [0, 0, 0] }, hist: [], last: null, theme: null, cards: {}, atq: { ok: 0, n: 0 }, star: {}, fk: {}, notes: {}, plan: {}, cfg: { fz: 1, goal: 40, exam: "" }, karma: {} };
 try { const s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s) ST = Object.assign(ST, s); } catch (e) { }
+ST.cfg = Object.assign({ fz: 1, goal: 40, exam: "" }, ST.cfg || {});
+document.documentElement.style.setProperty("--fz", ST.cfg.fz);
 let saveT = null;
 function save() { clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(ST)); } catch (e) { } }, 150); }
 
@@ -64,6 +66,11 @@ const IC = {
   guide: '<path d="M12 3 3 8l9 5 9-5z"/><path d="M7 10.5V16c0 1.5 2.2 3 5 3s5-1.5 5-3v-5.5"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
   wrong: '<path d="M6 6l12 12M18 6 6 18"/>',
+  dict: '<path d="M4 4h10a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4z"/><path d="M8 9h6M8 13h4"/>',
+  stats: '<path d="M4 20V12M10 20V6M16 20v-9M22 20H2"/><circle cx="16" cy="6" r="2"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  star: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/>',
+  menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
   card: '<rect x="3" y="6" width="14" height="12" rx="2"/><path d="M7 3h12a2 2 0 0 1 2 2v10"/>'
 };
 const icon = (k, s = 20) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg>`;
@@ -76,12 +83,16 @@ const NAV = [
   ["deneme", "Deneme sınavları", "exam", "Deneme"],
   ["atlas", "Hareket atlası", "atlas", "Atlas"],
   ["proje", "Bitirme projesi", "proje", "Proje"],
+  ["ezber", "Ezber kartları", "card", null],
+  ["sozluk", "Sözlük", "dict", null],
   ["rehber", "Final rehberi", "guide", null],
-  ["ara", "Arama", "search", null]
+  ["istatistik", "İstatistik", "stats", null],
+  ["ara", "Arama", "search", null],
+  ["ayarlar", "Ayarlar ve yedek", "gear", null]
 ];
 function navRoot(r) {
   if (/^u\d\d/.test(r)) return "uniteler";
-  if (/^(quiz|test|kart|yanlis)/.test(r)) return "quiz";
+  if (/^(quiz|test|kart|yanlis|karma|yildiz)/.test(r)) return "quiz";
   return r.split("-")[0];
 }
 function renderNav(route) {
@@ -101,12 +112,13 @@ let leaveHook = null;
 function go(r) { if (location.hash === "#" + r) route(); else location.hash = r; }
 async function route() {
   if (leaveHook) { try { leaveHook(); } catch (e) { } leaveHook = null; }
+  KEYS = null;
   let r = decodeURIComponent(location.hash.slice(1)) || "home";
   await unitsReady.catch(() => { });
   renderNav(r);
   const main = $("#main");
   let handler = null, arg = null;
-  if (/^u\d\d(-ah|-quiz)?$/.test(r)) { handler = ROUTES.unit; arg = r; }
+  if (/^u\d\d(-ah|-quiz|-ozet)?$/.test(r)) { handler = ROUTES.unit; arg = r; }
   else {
     const base = r.split("-")[0];
     handler = ROUTES[base] || null; arg = r;
@@ -129,17 +141,18 @@ function segNav(items, cur) { return `<nav class="seg scroll" role="tablist">${i
 
 /* ---------- wrong-answer notebook ---------- */
 function markAnswer(id, q, ok) {
-  if (ok) { if (ST.wrong[id]) { delete ST.wrong[id]; } }
-  else ST.wrong[id] = { q: q.q, o: q.o, a: q.a, e: q.e || "", src: q.src || "", c: q.c || "" };
-  ST.hist.push([Date.now(), ok ? 1 : 0]); if (ST.hist.length > 3000) ST.hist = ST.hist.slice(-3000);
+  if (ok) { const w = ST.wrong[id]; if (w) { w.s = (w.s || 0) + 1; if (w.s >= 2) delete ST.wrong[id]; } }
+  else ST.wrong[id] = { q: q.q, o: q.o, a: q.a, e: q.e || "", src: q.src || "", c: q.c || "", s: 0, n: ((ST.wrong[id] || {}).n || 0) + 1 };
+  ST.hist.push([Date.now(), ok ? 1 : 0, q.c || ""]); if (ST.hist.length > 3000) ST.hist = ST.hist.slice(-3000);
   save();
 }
 
 /* ---------- multiple choice card (shared) ---------- */
-function mcCard({ num, tag, q, o, a, e, chosen, reveal, onPick }) {
+function mcCard({ num, tag, q, o, a, e, chosen, reveal, onPick, id, src, c }) {
   const card = document.createElement("article"); card.className = "q";
   const show = reveal && chosen != null;
-  card.innerHTML = `<div class="qh"><span class="qn">${esc(num)}</span><span class="qtag">${esc(tag || "")}</span></div><p class="qt">${esc(q)}</p>`;
+  card.innerHTML = `<div class="qh"><span class="qn">${esc(num)}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><span class="qtag">${esc(tag || "")}</span>${id ? `<button type="button" class="ibtn starb ${ST.star[id] ? "on" : ""}" aria-label="Soruyu işaretle" title="Sonra tekrar etmek için işaretle">${icon("star", 18)}</button>` : ""}</span></div><p class="qt">${esc(q)}</p>`;
+  if (id) $(".starb", card).onclick = ev => { if (ST.star[id]) delete ST.star[id]; else ST.star[id] = { q, o, a, e: e || "", src: src || tag || "", c: c || "" }; save(); ev.currentTarget.classList.toggle("on", !!ST.star[id]); toast(ST.star[id] ? "İşaretlendi: Quiz → İşaretlediklerim" : "İşaret kaldırıldı"); };
   const os = document.createElement("div"); os.className = "opts";
   o.forEach((txt, i) => {
     const b = document.createElement("button"); b.type = "button"; b.className = "opt"; b.innerHTML = `<b>${L[i]}</b><span>${esc(txt)}</span>`;
@@ -187,11 +200,11 @@ ROUTES.uniteler = async (r, main) => {
 };
 
 ROUTES.unit = async (r, main) => {
-  const k = r.slice(0, 3), mode = r.includes("-ah") ? "ah" : r.includes("-quiz") ? "quiz" : "konu";
+  const k = r.slice(0, 3), mode = r.includes("-ah") ? "ah" : r.includes("-quiz") ? "quiz" : r.includes("-ozet") ? "ozet" : "konu";
   const d = await getJSON(k);
   const u = UNITS.find(x => x.k === k) || { no: d.no, t: d.t, nOrig: d.orig.length, nExtra: d.extra.length, min: 10 };
   const i = UNITS.findIndex(x => x.k === k), prev = UNITS[i - 1], next = UNITS[i + 1];
-  const tabs = segNav([[k, "Konu anlatımı"], [k + "-ah", `AH quizi (${d.orig.length})`], [k + "-quiz", `Ekstra quiz (${d.extra.length})`]], r);
+  const tabs = segNav([[k, "Konu anlatımı"], [k + "-ah", `AH quizi (${d.orig.length})`], [k + "-quiz", `Ekstra quiz (${d.extra.length})`], [k + "-ozet", "Sınav özeti ve notlar"]], r);
   const head = `<div class="uhead"><span class="no">Ünite ${d.no} · ${catPills(k)}</span><h1>${esc(d.t)}</h1>${tabs}</div>`;
   const foot = `<div class="unav">${prev ? `<a href="#${prev.k}"><small>← Önceki ünite</small><b>${prev.no}. ${esc(prev.t)}</b></a>` : "<span></span>"}${next ? `<a class="nx" href="#${next.k}"><small>Sonraki ünite →</small><b>${next.no}. ${esc(next.t)}</b></a>` : ""}</div>`;
   if (mode === "konu") {
@@ -212,6 +225,7 @@ ROUTES.unit = async (r, main) => {
     leaveHook = () => { ST.scroll[k] = window.scrollY; save(); if (io) io.disconnect(); };
     return;
   }
+  if (mode === "ozet") { const pg = page(main, `${head}<div id="oz"></div>${foot}`); await renderOzet(k, d, $("#oz", pg)); return; }
   if (mode === "ah") {
     const pg = page(main, `${head}<div id="ahbox" class="stack"></div>${foot}`);
     renderAH(k, d, $("#ahbox", pg));
@@ -280,12 +294,12 @@ function renderUnitQuiz(k, d, box) {
       if (filter === "wrong" && (ch == null || ch === q.a)) return;
       if (filter === "open" && ch != null) return;
       if (q.g && q.g !== g) { g = q.g; ql.insertAdjacentHTML("beforeend", `<div class="qgroup">${esc(g)}</div>`); }
-      const c = mcCard({ num: q.n, tag: "", q: q.q, o: q.o, a: q.a, e: q.e, chosen: ch, reveal: true, onPick: i => { if (S.ans[j] != null) return; S.ans[j] = i; markAnswer(`${k}-${q.n}`, { ...q, src: `Ünite ${d.no} ekstra quiz`, c: UCAT[k] }, i === q.a); save(); c.replaceWith(rebuild(j)); upd(); } });
+      const c = mcCard({ id: `${k}-${q.n}`, src: `Ünite ${d.no} ekstra quiz`, c: UCAT[k], num: q.n, tag: "", q: q.q, o: q.o, a: q.a, e: q.e, chosen: ch, reveal: true, onPick: i => { if (S.ans[j] != null) return; S.ans[j] = i; markAnswer(`${k}-${q.n}`, { ...q, src: `Ünite ${d.no} ekstra quiz`, c: UCAT[k] }, i === q.a); save(); c.replaceWith(rebuild(j)); upd(); } });
       ql.appendChild(c);
     });
     if (!ql.children.length) ql.innerHTML = `<div class="empty">Bu filtrede soru yok.</div>`;
   };
-  const rebuild = j => { const q = d.extra[j]; const c = mcCard({ num: q.n, q: q.q, o: q.o, a: q.a, e: q.e, chosen: S.ans[j], reveal: true }); return c; };
+  const rebuild = j => { const q = d.extra[j]; const c = mcCard({ id: `${k}-${q.n}`, src: `Ünite ${d.no} ekstra quiz`, c: UCAT[k], num: q.n, q: q.q, o: q.o, a: q.a, e: q.e, chosen: S.ans[j], reveal: true }); return c; };
   $$("#flt button", box).forEach(b => b.onclick = () => { filter = b.dataset.f; $$("#flt button", box).forEach(x => x.setAttribute("aria-selected", x === b)); draw(); });
   $("#rst", box).onclick = () => { S.ans = {}; S.ok = 0; save(); draw(); upd(); window.scrollTo({ top: 0, behavior: "smooth" }); };
   draw(); upd();
@@ -293,8 +307,9 @@ function renderUnitQuiz(k, d, box) {
 
 /* ============ quiz hub, mixed test, flash cards, wrong notebook ============ */
 async function loadAllUnits() { return Promise.all(UNITS.map(u => getJSON(u.k))); }
-async function buildPool(srcUnits, srcExams, cats) {
+async function buildPool(srcUnits, srcExams, cats, srcKarma = true) {
   const pool = [];
+  if (srcKarma) { const E = await getJSON("ezber"); E.karma.forEach((q, j) => { if (cats.includes(KARMA_C[j])) pool.push({ id: "k-" + (j + 1), q: q.q, o: q.o, a: q.a, e: q.e, c: KARMA_C[j], src: `Final rehberi karma, soru ${j + 1}` }); }); }
   if (srcUnits) {
     const all = await loadAllUnits();
     all.forEach(d => {
@@ -326,12 +341,15 @@ ROUTES.quiz = async (r, main) => {
     <div class="uhead"><span class="eyebrow">Quiz merkezi</span><h1>Soru çöz, eksiğini bul</h1>
     <p class="muted">Toplam ${totAH} Athletic House sorusu, ${totExtra} ünite ekstra sorusu ve ${300} deneme sorusu. Ünite ünite çözebilir, konu karışık test oluşturabilir ya da sadece yanlışlarına çalışabilirsin.</p></div>
     <div class="tiles">
-      <a class="tile" href="#yanlis"><span class="ic">${icon("wrong")}</span><h3>Yanlış defteri</h3><span class="muted small">${nWrong ? `${nWrong} soru bekliyor. Doğru cevapladıkça defterden silinir.` : "Henüz yanlışın yok. Soru çözdükçe yanlışların buraya düşer."}</span></a>
+      <a class="tile" href="#yanlis"><span class="ic">${icon("wrong")}</span><h3>Yanlış defteri</h3><span class="muted small">${nWrong ? `${nWrong} soru bekliyor. Doğru cevapladıkça defterden silinir.` : "Henüz yanlışın yok. Soru çözdükçe yanlışların buraya düşer."} Bir soru üst üste 2 kez doğru bilinince çıkar.</span></a>
       <a class="tile" href="#kart"><span class="ic">${icon("card")}</span><h3>Flash kartlar</h3><span class="muted small">${totAH} Athletic House sorusu kart olarak: soruyu gör, cevabı aç, bildim/bilemedim de.</span></a>
+      <a class="tile" href="#yildiz"><span class="ic">${icon("star")}</span><h3>İşaretlediklerim</h3><span class="muted small">${Object.keys(ST.star).length} soru. Sorulardaki ☆ ile işaretlediklerin.</span></a>
+      <a class="tile" href="#karma"><span class="ic">${icon("guide")}</span><h3>Final rehberi: 25 karma soru</h3><span class="muted small">Rehberin son bölümündeki soru seti, açıklamalı. 20+ doğru = hazırsın.</span></a>
+      <a class="tile" href="#ezber-test"><span class="ic">${icon("card")}</span><h3>Ezber testi</h3><span class="muted small">250 “bilmen gereken” bilgiden sınırsız çoktan seçmeli soru.</span></a>
       <a class="tile" href="#deneme"><span class="ic">${icon("exam")}</span><h3>100 soruluk denemeler</h3><span class="muted small">Gerçek sınav dağılımıyla 3 tam deneme, konu bazlı karne.</span></a>
     </div>
     <section class="card stack" id="builder"><h2>Karma test oluştur</h2>
-      <div class="grid"><b class="small">Soru kaynağı</b><div class="row"><label class="chk"><input type="checkbox" id="sU" checked> Ünite ekstra quizleri (${totExtra})</label><label class="chk"><input type="checkbox" id="sE" checked> Deneme sınavı soruları (300)</label></div></div>
+      <div class="grid"><b class="small">Soru kaynağı</b><div class="row"><label class="chk"><input type="checkbox" id="sU" checked> Ünite ekstra quizleri (${totExtra})</label><label class="chk"><input type="checkbox" id="sE" checked> Deneme sınavı soruları (300)</label><label class="chk"><input type="checkbox" id="sK" checked> Final rehberi karma (25)</label></div></div>
       <div class="grid"><b class="small">Konu alanı (sınav dağılımındaki başlıklar)</b><div class="chipsel" id="cs">${CATS.map(c => `<button type="button" aria-pressed="true" data-c="${c.k}">${esc(c.n)}</button>`).join("")}</div></div>
       <div class="row"><label class="small">Soru sayısı <select id="nq"><option>10</option><option selected>20</option><option>30</option><option>50</option><option>100</option></select></label>
       <label class="chk small"><input type="checkbox" id="inst" checked> Her sorudan sonra cevabı göster</label></div>
@@ -342,9 +360,9 @@ ROUTES.quiz = async (r, main) => {
       <div class="tw"><table><thead><tr><th>Ünite</th><th>AH quizi</th><th>Ekstra quiz</th></tr></thead><tbody>${rows}</tbody></table></div></section>
   </div>`);
   const cats = () => $$("#cs button", pg).filter(b => b.getAttribute("aria-pressed") === "true").map(b => b.dataset.c);
-  const cnt = async () => { const p = await buildPool($("#sU").checked, $("#sE").checked, cats()); $("#poolN").textContent = `Havuzda ${p.length} soru var.`; return p; };
+  const cnt = async () => { const p = await buildPool($("#sU").checked, $("#sE").checked, cats(), $("#sK").checked); $("#poolN").textContent = `Havuzda ${p.length} soru var.`; return p; };
   $$("#cs button", pg).forEach(b => b.onclick = () => { b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true"); cnt(); });
-  ["sU", "sE"].forEach(id => $("#" + id).onchange = cnt);
+  ["sU", "sE", "sK"].forEach(id => $("#" + id).onchange = cnt);
   $("#startT").onclick = async () => {
     const p = await cnt(); if (!p.length) { toast("Önce en az bir kaynak ve konu seç."); return; }
     const n = Math.min(+$("#nq").value, p.length);
@@ -365,7 +383,7 @@ ROUTES.test = async (r, main) => {
       <div id="qc"></div>
       <div class="row between"><button class="btn plain" id="pv" ${S.i ? "" : "disabled"}>← Önceki</button>
       <button class="btn" id="nx">${S.i === S.qs.length - 1 ? "Bitir ve puanla" : "Sonraki →"}</button></div></div>`);
-    const card = mcCard({ num: S.i + 1, tag: `${CATN[q.c] || ""} · ${q.src}`, q: q.q, o: q.o, a: q.a, e: q.e, chosen: ch, reveal: S.inst || false, onPick: i => { if (S.inst && S.ans[S.i] != null) return; S.ans[S.i] = i; if (S.inst) markAnswer(q.id, q, i === q.a); saveSess(); draw(); } });
+    const card = mcCard({ id: q.id, src: q.src, c: q.c, num: S.i + 1, tag: `${CATN[q.c] || ""} · ${q.src}`, q: q.q, o: q.o, a: q.a, e: q.e, chosen: ch, reveal: S.inst || false, onPick: i => { if (S.inst && S.ans[S.i] != null) return; S.ans[S.i] = i; if (S.inst) markAnswer(q.id, q, i === q.a); saveSess(); draw(); } });
     $("#qc", pg).appendChild(card);
     $("#pv", pg).onclick = () => { S.i--; saveSess(); draw(); };
     $("#nx", pg).onclick = () => { if (S.i === S.qs.length - 1) { if (!S.inst) S.qs.forEach((q, j) => { if (S.ans[j] != null) markAnswer(q.id, q, S.ans[j] === q.a); }); S.done = true; saveSess(); draw(); } else { S.i++; saveSess(); draw(); } window.scrollTo(0, 0); };
@@ -391,14 +409,14 @@ ROUTES.yanlis = async (r, main) => {
   if (!ids.length) { page(main, `<div class="uhead"><span class="eyebrow">Yanlış defteri</span><h1>Defter boş</h1></div><div class="empty">Yanlış yaptığın her soru buraya düşer. Doğru cevapladığında defterden kendiliğinden silinir.<br><br><a class="btn" href="#quiz">Soru çözmeye başla</a></div>`); return; }
   const byC = {}; ids.forEach(id => { const c = ST.wrong[id].c || "x"; byC[c] = (byC[c] || 0) + 1; });
   const pg = page(main, `<div class="stack"><div class="uhead"><span class="eyebrow">Yanlış defteri</span><h1>${ids.length} soru tekrar bekliyor</h1>
-    <p class="muted">Bunları yanlış cevaplamıştın. Tekrar çöz: doğru bildiğin soru defterden çıkar.</p>
+    <p class="muted">Bunları yanlış cevaplamıştın. Tekrar çöz: bir soru <b>üst üste 2 kez</b> doğru bilinince defterden çıkar (şansla bir kere doğru tutturmak yetmez).</p>
     <div class="row">${Object.entries(byC).map(([c, n]) => `<span class="pill">${esc(CATN[c] || "Diğer")} · ${n}</span>`).join("")}</div>
     <div class="row"><button class="btn" id="wt">Hepsini test olarak çöz</button><button class="btn ghost" id="wc">Defteri temizle</button></div></div>
     <div class="grid" id="wl"></div></div>`);
   const wl = $("#wl", pg);
   ids.forEach((id, j) => {
     const q = ST.wrong[id]; let ch = null;
-    const mk = () => mcCard({ num: j + 1, tag: q.src, q: q.q, o: q.o, a: q.a, e: q.e, chosen: ch, reveal: true, onPick: i => { if (ch != null) return; ch = i; markAnswer(id, q, i === q.a); const n = mk(); c.replaceWith(n); c = n; } });
+    const mk = () => mcCard({ id, src: q.src, c: q.c, num: j + 1, tag: q.src + (q.s ? ` · ${q.s}/2 doğru` : ""), q: q.q, o: q.o, a: q.a, e: q.e, chosen: ch, reveal: true, onPick: i => { if (ch != null) return; ch = i; markAnswer(id, q, i === q.a); const n = mk(); c.replaceWith(n); c = n; } });
     let c = mk(); wl.appendChild(c);
   });
   $("#wt", pg).onclick = () => { SESSION = { qs: shuffle(ids.map(id => ({ id, ...ST.wrong[id] }))), ans: [], i: 0, inst: true, done: false, title: "Yanlış defteri testi" }; saveSess(); go("test"); };
@@ -446,7 +464,7 @@ ROUTES.deneme = async (r, main) => {
     <div class="uhead"><span class="eyebrow">Yazılı sınav provası</span><h1>100 soruluk deneme sınavları</h1>${tabs}</div>
     <details class="card"><summary><b>Sınav dağılımı ve kurallar</b></summary><div class="stack" style="margin-top:12px"><p class="small muted">Her deneme gerçek yazılı sınavın konu dağılımıyla hazırlandı (100 soru). İşaretlediklerin bu cihazda saklanır, istediğin zaman bırakıp dönebilirsin. Süre tutmak istersen kronometreyi başlat.</p><div class="dist">${dist}</div></div></details>
     <div class="scorebar"><div class="row between"><span class="small num" id="cnt"></span>
-      <div class="row"><span class="small num muted" id="clk"></span><button class="btn sm plain" id="tm">⏱ Süre</button><label class="chk small"><input type="checkbox" id="ins"> Cevabı hemen göster</label><button class="btn sm" id="fin"></button></div></div>
+      <div class="row"><span class="small num muted" id="clk"></span><select id="lim" aria-label="Süre sınırı" style="padding:5px 8px;font-size:14px"><option value="0">Süre sınırı yok</option><option value="60">60 dk</option><option value="90">90 dk</option><option value="120">120 dk</option></select><button class="btn sm plain" id="tm">⏱ Başlat</button><label class="chk small"><input type="checkbox" id="ins"> Cevabı hemen göster</label><button class="btn sm" id="fin"></button></div></div>
       <div class="bar"><i id="pb"></i></div></div>
     <section id="res" class="card stack" hidden></section>
     <div class="grid" id="qs"></div></div>`);
@@ -454,12 +472,15 @@ ROUTES.deneme = async (r, main) => {
   const reveal = j => S.done[cur] || (S.instant && ans[j] != null);
   const prog = () => { const n = Object.keys(ans).length; $("#cnt", pg).textContent = `${n} / 100 işaretli`; $("#pb", pg).style.width = n + "%"; };
   let timer = null;
-  const clk = () => { const t = S.t[cur] || 0; $("#clk", pg).textContent = t ? `${Math.floor(t / 60)}:${pad2(t % 60)}` : ""; };
-  $("#tm", pg).onclick = () => { if (timer) { clearInterval(timer); timer = null; $("#tm", pg).textContent = "⏱ Devam"; save(); } else { timer = setInterval(() => { S.t[cur] = (S.t[cur] || 0) + 1; clk(); if (S.t[cur] % 10 === 0) save(); }, 1000); $("#tm", pg).textContent = "⏸ Durdur"; } };
+  S.lim = S.lim || [0, 0, 0];
+  const clk = () => { const t = S.t[cur] || 0, L = (S.lim[cur] || 0) * 60; const show = L ? Math.max(0, L - t) : t; $("#clk", pg).textContent = (t || L) ? `${L ? "Kalan " : ""}${Math.floor(show / 60)}:${pad2(show % 60)}` : ""; $("#clk", pg).style.color = L && L - t < 300 ? "var(--bad)" : ""; };
+  $("#lim", pg).value = S.lim[cur] || 0;
+  $("#lim", pg).onchange = e => { S.lim[cur] = +e.target.value; save(); clk(); };
+  $("#tm", pg).onclick = () => { if (S.done[cur]) return; if (timer) { clearInterval(timer); timer = null; $("#tm", pg).textContent = "⏱ Devam"; save(); } else { timer = setInterval(() => { S.t[cur] = (S.t[cur] || 0) + 1; clk(); if (S.t[cur] % 10 === 0) save(); if (S.lim[cur] && S.t[cur] >= S.lim[cur] * 60) { clearInterval(timer); timer = null; toast("Süre doldu, sınav puanlandı"); finish(true); } }, 1000); $("#tm", pg).textContent = "⏸ Durdur"; } };
   leaveHook = () => { if (timer) clearInterval(timer); save(); };
   const card = j => {
     const q = E[j];
-    const c = mcCard({ num: j + 1, tag: CATN[q.c], q: q.q, o: q.o, a: q.a, e: q.e, chosen: ans[j] == null ? (S.done[cur] ? -1 : null) : ans[j], reveal: reveal(j) || S.done[cur], onPick: i => { if (reveal(j)) return; ans[j] = i; if (S.instant) markAnswer(`d${cur + 1}-${j + 1}`, { ...q, src: `Deneme ${cur + 1}, soru ${j + 1}` }, i === q.a); save(); c.replaceWith(card(j)); prog(); } });
+    const c = mcCard({ id: `d${cur + 1}-${j + 1}`, src: `Deneme ${cur + 1}, soru ${j + 1}`, c: q.c, num: j + 1, tag: CATN[q.c], q: q.q, o: q.o, a: q.a, e: q.e, chosen: ans[j] == null ? (S.done[cur] ? -1 : null) : ans[j], reveal: reveal(j) || S.done[cur], onPick: i => { if (reveal(j)) return; ans[j] = i; if (S.instant) markAnswer(`d${cur + 1}-${j + 1}`, { ...q, src: `Deneme ${cur + 1}, soru ${j + 1}` }, i === q.a); save(); c.replaceWith(card(j)); prog(); } });
     return c;
   };
   const drawQs = () => { const box = $("#qs", pg); box.innerHTML = ""; E.forEach((q, j) => { if (filter === "wrong" && ans[j] === q.a) return; if (filter && filter !== "wrong" && q.c !== filter) return; box.appendChild(card(j)); }); };
@@ -480,6 +501,11 @@ ROUTES.deneme = async (r, main) => {
   };
   $("#ins", pg).checked = !!S.instant;
   $("#ins", pg).onchange = e => { S.instant = e.target.checked; save(); drawQs(); };
+  const finish = force => {
+    if (S.done[cur]) return;
+    S.done[cur] = true; if (!S.instant) E.forEach((q, j) => { if (ans[j] != null) markAnswer(`d${cur + 1}-${j + 1}`, { ...q, src: `Deneme ${cur + 1}, soru ${j + 1}` }, ans[j] === q.a); });
+    save(); drawRes(); drawQs(); window.scrollTo({ top: 0, behavior: "smooth" });
+  };
   $("#fin", pg).onclick = () => {
     if (S.done[cur]) { if (!confirm("Bu denemedeki cevapların silinsin mi?")) return; S.st[cur] = {}; S.done[cur] = false; S.t[cur] = 0; save(); route(); return; }
     const n = Object.keys(ans).length; if (n < 100 && !confirm(`${100 - n} soru boş. Yine de bitirip puanlansın mı?`)) return;
@@ -621,12 +647,13 @@ let CALC = Object.assign({}, CASE, (() => { try { return JSON.parse(localStorage
 
 ROUTES.proje = async (r, main) => {
   const v = r.split("-")[1] || "genel";
-  const tabs = segNav([["proje", "Genel bakış"], ["proje-testler", "Testler tablosu"], ["proje-hesap", "Hesaplayıcı"], ["proje-degerlendirme", "Değerlendirme"], ["proje-dokuman", "Case dokümanı"]], r === "proje-genel" ? "proje" : r);
-  const head = `<div class="uhead"><span class="eyebrow">Bitirme projesi</span><h1>${{ genel: "Bitirme projesi nasıl yapılır?", testler: "Test bataryası: ne ölçer, nasıl yapılır, ne sonuç verir", hesap: "Test sonuçlarını hesapla ve yorumla", degerlendirme: "Değerlendirme nasıl yazılır?", dokuman: "Case analizi: çözülmüş örnek" }[v] || "Bitirme projesi"}</h1>${tabs}</div>`;
+  const tabs = segNav([["proje", "Genel bakış"], ["proje-testler", "Testler tablosu"], ["proje-hesap", "Hesaplayıcı"], ["proje-degerlendirme", "Değerlendirme"], ["proje-program", "Program oluşturucu"], ["proje-dokuman", "Case dokümanı"]], r === "proje-genel" ? "proje" : r);
+  const head = `<div class="uhead"><span class="eyebrow">Bitirme projesi</span><h1>${{ genel: "Bitirme projesi nasıl yapılır?", testler: "Test bataryası: ne ölçer, nasıl yapılır, ne sonuç verir", hesap: "Test sonuçlarını hesapla ve yorumla", degerlendirme: "Değerlendirme nasıl yazılır?", program: "Haftalık program ve birim antrenman formu", dokuman: "Case analizi: çözülmüş örnek" }[v] || "Bitirme projesi"}</h1>${tabs}</div>`;
   if (v === "dokuman") { const d = await getJSON("proje"); const toc = d.toc.map((t, j) => `<button data-s="s${j + 1}">${esc(t)}</button>`).join(""); const pg = page(main, head + `<details class="tocm"><summary>İçindekiler</summary><div class="ls">${toc}</div></details><div class="readwrap" style="margin-top:16px"><article class="doc">${d.html}</article><aside class="toc"><b>İçindekiler</b>${toc}</aside></div>`, "unit"); $$("button[data-s]", pg).forEach(b => b.onclick = () => document.getElementById(b.dataset.s).scrollIntoView({ behavior: "smooth" })); return; }
   if (v === "testler") return projeTests(main, head);
   if (v === "hesap") return projeCalc(main, head);
   if (v === "degerlendirme") return projeEval(main, head);
+  if (v === "program") return projeProgram(main, head);
   page(main, head + `<div class="stack">
     <p class="doc">Bitirme projesinde sana bir vaka (case) verilir ya da kendi üyeni ölçersin. Senden istenen, Athletic House'un <b>4 Adım Modeli</b>ni baştan sona uygulaman: ölç, değerlendir, hedef koy, programı yaz. Puanı getiren şey hesap değil, her sonucu <b>norm tablosundaki kategorisiyle</b> ve <b>programa etkisiyle</b> birlikte yazabilmek.</p>
     <div class="steps4">
@@ -658,6 +685,7 @@ ROUTES.proje = async (r, main) => {
       <a class="tile" href="#proje-testler"><h3>Testler tablosu →</h3><span class="small muted">16 testin ne ölçtüğü, malzemesi, adım adım protokolü, formülü ve norm sonucu.</span></a>
       <a class="tile" href="#proje-hesap"><h3>Hesaplayıcı →</h3><span class="small muted">Değerleri gir; BMI, BKO, % yağ, VO₂max, Karvonen ve tüm kategoriler, hazır değerlendirme metni.</span></a>
       <a class="tile" href="#proje-degerlendirme"><h3>Değerlendirme →</h3><span class="small muted">Sonuç nasıl yorumlanır, öncelik nasıl seçilir, SMART hedef ve FITT programı nasıl yazılır.</span></a>
+      <a class="tile" href="#proje-program"><h3>Program oluşturucu →</h3><span class="small muted">Haftalık program ve birim antrenman formu (ısınma, ana bölüm, soğuma); doldur, yazdır.</span></a>
       <a class="tile" href="#proje-dokuman"><h3>Case dokümanı →</h3><span class="small muted">Workshop vakasının tam çözümü, workshop hataları ve kendi projen için şablon.</span></a>
     </div></div>`);
 };
@@ -925,6 +953,7 @@ ROUTES.home = async (r, main) => {
     <section class="hero"><span class="eyebrow">Uluslararası Fitness Eğitmenliği</span><h1>Berkay, bugün neye çalışıyoruz?</h1>
       <p class="muted">Athletic House eğitiminde birlikte hazırladığımız her şey burada: 18 ünitenin konu anlatımı, orijinal ve ekstra quizler, 3 tam deneme sınavı, hareket analizi atlası ve bitirme projesi rehberi. İlerlemen bu cihazda saklanır.</p>
       <div class="row">${lastName ? `<a class="btn" href="#${ST.last}">Kaldığın yerden devam: ${esc(lastName)}</a>` : ""}${next ? `<a class="btn ${lastName ? "ghost" : ""}" href="#${next.k}">Sıradaki ünite: ${next.no}. ${esc(next.t)}</a>` : ""}</div></section>
+    ${homeExtras()}
     <section class="kpis">
       <div class="card kpi"><b>${read}<span style="font-size:20px;color:var(--muted)"> / 18</span></b><span>ünite okundu</span><div class="bar ok" style="margin-top:8px"><i style="width:${read / 18 * 100}%"></i></div></div>
       <div class="card kpi"><b>${answered ? Math.round(correct / answered * 100) + "%" : "–"}</b><span>ekstra quiz doğruluğu (${answered} soru)</span></div>
@@ -938,10 +967,14 @@ ROUTES.home = async (r, main) => {
       ${T("atlas", "atlas", "Hareket analizi atlası", "47 egzersiz: eklem, hareket, düzlem, agonist, antagonist, sinerjist, stabilizatör, nötralizör.")}
       ${T("proje", "proje", "Bitirme projesi", "Testler tablosu, protokoller, norm hesaplayıcı ve değerlendirme rehberi.")}
       ${T("rehber", "guide", "Final sınav rehberi", "En çok çıkacak bilgiler, formüller, manuel hataları, son tekrar planı.")}
+      ${T("ezber", "card", "Ezber kartları", "250 bilgi: tanımlar, formüller, sayılar, sık karıştırılan çiftler. Kart, liste ve test.")}
+      ${T("sozluk", "dict", "Sözlük", "188 terim ve kısaltma: anatomi, fizyoloji, antrenman, ölçüm, beslenme.")}
+      ${T("istatistik", "stats", "İstatistik", "Hangi konuda zayıfsın, ne çalışmalısın, son 14 gün.")}
     </section>
     <section class="card stack"><div class="row between"><h2>Yazılı sınav dağılımı</h2><span class="small muted">100 soru</span></div><div class="dist">${dist}</div>
       <p class="small muted">Ağırlığı en yüksek alan Genel Antrenman (%30), ardından Fonksiyonel Anatomi (%20). Atlas ve ünite 3, 9, 14 anatomi kısmını; ünite 1, 6, 10–13 ve 18 antrenman kısmını kapsar.</p></section>
   </div>`);
+  wireHome(main);
 };
 
 ROUTES.rehber = async (r, main) => {
@@ -956,14 +989,16 @@ ROUTES.rehber = async (r, main) => {
 ROUTES.ara = async (r, main) => {
   const pg = page(main, `<div class="stack"><div class="uhead"><span class="eyebrow">Arama</span><h1>Ne arıyorsun?</h1></div>
     <input type="search" id="sq" placeholder="ör. Karvonen, rotator cuff, BKO, SAID, gluteus medius" aria-label="Ara" autofocus style="font-size:18px;padding:12px 14px">
-    <div class="chipsel" id="sk"><button aria-pressed="true" data-k="konu">Konu anlatımı</button><button aria-pressed="true" data-k="soru">Sorular</button><button aria-pressed="true" data-k="atlas">Atlas</button></div>
+    <div class="chipsel" id="sk"><button aria-pressed="true" data-k="konu">Konu anlatımı</button><button aria-pressed="true" data-k="soru">Sorular</button><button aria-pressed="true" data-k="atlas">Atlas, sözlük, ezber</button></div>
     <div class="small muted" id="sn"></div><div class="sres" id="sr"></div></div>`);
-  const [IDX, A, EXM] = await Promise.all([getJSON("search"), getJSON("atlas"), getJSON("exams")]);
+  const [IDX, A, EXM, GL, EZ] = await Promise.all([getJSON("search"), getJSON("atlas"), getJSON("exams"), getJSON("sozluk"), getJSON("ezber")]);
   const allU = await loadAllUnits();
   const QS = [];
   allU.forEach(d => { const k = "u" + pad2(d.no); d.extra.forEach(q => QS.push({ r: k + "-quiz", t: `Ünite ${d.no} ekstra quiz · soru ${q.n}`, x: q.q + " — " + q.o[q.a] + ". " + q.e })); d.orig.forEach(q => QS.push({ r: k + "-ah", t: `Ünite ${d.no} AH quizi · soru ${q.n}`, x: q.q + " — " + q.a + ". " + q.e })); });
   EXM.exams.forEach((E, i) => E.forEach((q, j) => QS.push({ r: "deneme-" + (i + 1), t: `Deneme ${i + 1} · soru ${j + 1}`, x: q.q + " — " + q.o[q.a] + ". " + q.e })));
   const AT = A.EX.map(e => ({ r: "atlas-egzersiz", t: `Atlas · ${e.n}`, x: [e.tr, e.ag, e.sn, e.an, e.st, e.nt, e.ip, e.f.map(f => f.join(" ")).join(", ")].join(" · ") })).concat(A.MS.map(m => ({ r: "atlas-kas", t: `Atlas kas · ${m[0]}`, x: [m[1], m[2], m[3].map(a => a.join(" ")).join(", "), m[4], m[5]].join(" · ") })));
+  GL.forEach(g => AT.push({ r: "sozluk", t: `Sözlük · ${g.t}`, x: g.x }));
+  EZ.facts.forEach(f => AT.push({ r: /^u\d\d$/.test(f.d) ? f.d + "-ozet" : "ezber-formul", t: `Ezber · ${f.q}`, x: f.a.replace(/<[^>]+>/g, "") }));
   IDX.forEach(i => { i.fx = fold(i.x); i.ft = fold(i.t); }); QS.forEach(i => { i.fx = fold(i.x); i.ft = fold(i.t); }); AT.forEach(i => { i.fx = fold(i.x); i.ft = fold(i.t); });
   const on = k => $(`#sk [data-k=${k}]`).getAttribute("aria-pressed") === "true";
   const snip = (txt, terms) => {
@@ -989,8 +1024,314 @@ ROUTES.ara = async (r, main) => {
   $("#sq").focus(); run();
 };
 
+
+/* ---- home extras: countdown, goal, quick 10, daily question, last-week plan ---- */
+function homeExtras() {
+  const dl = daysLeft(), tc = todayCount(), g = ST.cfg.goal;
+  const plan = [["Ünite 3 ve 9: kas tabloları, hareket sözlüğü", "u03"], ["Ünite 2, 4 ve 13: fizyoloji, sinir sistemi, kalp ve kardiyo", "u02"], ["Ünite 5: tüm formüller ve norm tabloları; bitirme projesi hesaplarını kendin yap", "u05"], ["Ünite 6, 12 ve 18: antrenman ilkeleri, kuvvet piramidi, program dizaynı", "u06"], ["Ünite 8, 17, 10 ve 11: motivasyon, beslenme, esneklik, postür", "u08"], ["Ünite 1, 7, 14, 15, 16 ve tüm quizleri baştan çöz", "quiz"], ["Formüller ve sayılar + karma 25 soru; yanlışlarına 10 dk bak, erken yat", "karma"]];
+  return `<section class="g2">
+    <div class="card stack">${dl == null ? `<div><b>Sınav tarihini girmedin</b><p class="small muted">Girersen burada geri sayım ve son hafta planı çıkar.</p></div><div><a class="btn sm ghost" href="#ayarlar">Tarih gir</a></div>` : `<div class="row"><span class="big">${Math.max(dl, 0)}</span><div><b>${dl > 0 ? "gün kaldı" : dl === 0 ? "Sınav bugün, başarılar!" : "Sınav geçti"}</b><div class="small muted">Yazılı sınav · ${new Date(ST.cfg.exam).toLocaleDateString("tr-TR", { day: "numeric", month: "long", weekday: "long" })}</div></div></div>`}
+      <div class="goalbar"><div class="row between small"><span>Bugünkü hedef</span><span class="num">${tc} / ${g} soru</span></div><div class="bar ok"><i style="width:${Math.min(100, tc / g * 100)}%"></i></div></div>
+      <div class="row"><button class="btn" id="q10">⚡ Hızlı 10 soru</button><a class="btn ghost" href="#yanlis">Yanlış defteri (${Object.keys(ST.wrong).length})</a></div></div>
+    <div class="card stack" id="gq"><span class="eyebrow">Günün sorusu</span><div class="loading" style="padding:10px 0">…</div></div>
+  </section>
+  ${dl != null && dl >= 0 && dl <= 7 ? `<section class="card stack"><h2>Son hafta planı</h2><p class="small muted">Final rehberindeki 7 günlük tekrar. Bitirdiğin günü işaretle.</p>${plan.map((p, i) => `<label class="chk"><input type="checkbox" data-pl="${i}" ${ST.plan[i] ? "checked" : ""}> <span><b>${i + 1}. gün:</b> ${esc(p[0])} · <a href="#${p[1]}">aç</a></span></label>`).join("")}</section>` : ""}`;
+}
+async function wireHome(main) {
+  $$("[data-pl]", main).forEach(c => c.onchange = () => { ST.plan[c.dataset.pl] = c.checked; save(); });
+  const q10 = $("#q10", main);
+  if (q10) q10.onclick = async () => { const p = await buildPool(true, true, CATS.map(c => c.k)); SESSION = { qs: shuffle(p).slice(0, 10), ans: [], i: 0, inst: true, done: false, title: "Hızlı 10 soru" }; saveSess(); go("test"); };
+  const box = $("#gq", main); if (!box) return;
+  try {
+    const all = await loadAllUnits(); const pool = []; all.forEach(d => d.extra.forEach(q => pool.push({ ...q, k: "u" + pad2(d.no), no: d.no })));
+    const k = todayKey(); let h = 0; for (const ch of k) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    const q = pool[h % pool.length]; const id = `${q.k}-${q.n}`; const key = "gq-" + k;
+    const draw = () => { const ch = ST.cards[key]; box.innerHTML = '<span class="eyebrow">Günün sorusu</span>'; box.appendChild(mcCard({ id, src: `Ünite ${q.no} ekstra quiz`, c: UCAT[q.k], num: "★", tag: `Ünite ${q.no}`, q: q.q, o: q.o, a: q.a, e: q.e, chosen: ch, reveal: true, onPick: i => { if (ST.cards[key] != null) return; ST.cards[key] = i; markAnswer(id, { ...q, src: `Ünite ${q.no} ekstra quiz`, c: UCAT[q.k] }, i === q.a); save(); draw(); } })); const c = box.querySelector(".q"); c.style.border = "0"; c.style.padding = "0"; };
+    draw();
+  } catch (e) { box.innerHTML = ""; }
+}
+
+/* ============ extras: özet & notlar, ezber, karma, yıldızlı, sözlük, istatistik, ayarlar, program ============ */
+const KARMA_C = ["olc", "olc", "fiz", "fiz", "olc", "fa", "fiz", "ant", "fiz", "olc", "olc", "fa", "ant", "ant", "ant", "fa", "olc", "bes", "olc", "fiz", "egi", "fa", "olc", "bes", "ant"];
+const todayKey = (t = Date.now()) => { const d = new Date(t); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
+const daysLeft = () => { if (!ST.cfg.exam) return null; const d = new Date(ST.cfg.exam + "T09:00:00"); return Math.ceil((d - new Date()) / 864e5); };
+const todayCount = () => { const k = todayKey(); return ST.hist.filter(h => todayKey(h[0]) === k).length; };
+
+/* ---- unit: exam summary + personal notes ---- */
+async function renderOzet(k, d, box) {
+  const E = await getJSON("ezber"); const s = E.summ[k];
+  const facts = E.facts.filter(f => f.d === k);
+  const fk = ST.fk; const known = facts.filter((f, i) => fk[k + "-" + E.facts.indexOf(f)] === 1).length;
+  box.innerHTML = `<div class="stack">
+    ${s ? `<div class="callout row between"><span>Final rehberine göre bu üniteden sınavda yaklaşık <b>${s.n} soru</b> bekleniyor.</span><a class="btn sm" href="#ezber-u${k.slice(1)}">Bu ünitenin ezber kartları (${facts.length})</a></div>
+    <section class="stack"><h2>Sınavda en çok çıkacaklar</h2><div class="doc" style="max-width:none">${s.html}</div></section>` : '<div class="empty">Bu ünite için özet bulunamadı.</div>'}
+    <section class="card stack"><div class="row between"><h2>Notlarım</h2><span class="small muted" id="nsv"></span></div>
+      <p class="small muted">Kendi notların, hocanın vurguladıkları, takıldığın yerler. Yazdıkça bu cihaza kaydedilir; Ayarlar'daki yedeğe de dahil.</p>
+      <textarea id="nt" rows="10" style="width:100%;font:inherit;font-size:16px;padding:12px;border:1px solid var(--line2);border-radius:8px;background:var(--surface);color:var(--ink);resize:vertical" placeholder="Örn: Rotator cuff = SITS. Teres major dahil değil!">${esc(ST.notes[k] || "")}</textarea></section>
+    <div class="row"><span class="small muted">Ezber kartlarında bu üniteden ${known} / ${facts.length} bilgi “bildim” işaretli.</span></div></div>`;
+  let t = null;
+  $("#nt", box).addEventListener("input", e => { ST.notes[k] = e.target.value; clearTimeout(t); t = setTimeout(() => { save(); $("#nsv", box).textContent = "Kaydedildi"; }, 400); });
+}
+
+/* ---- ezber kartları (250 bilgi) ---- */
+ROUTES.ezber = async (r, main) => {
+  const E = await getJSON("ezber");
+  const sel = r.split("-")[1] || "kart";
+  const decks = [["hepsi", "Tüm bilgiler"], ...UNITS.map(u => ["u" + u.no, `Ünite ${u.no}`]), ["Formüller", "Formüller"], ["Ezber sayıları", "Ezber sayıları"], ["Sık karıştırılan çiftler", "Karıştırılan çiftler"], ["tekrar", "Bilemediklerim"]];
+  const tabs = segNav([["ezber", "Kartlar"], ["ezber-test", "Ezber testi"], ["ezber-liste", "Liste"], ["ezber-formul", "Formüller ve sayılar"]], sel === "test" || sel === "liste" || sel === "formul" ? "ezber-" + sel : "ezber");
+  const head = `<div class="uhead"><span class="eyebrow">Ezber</span><h1>Ezber kartları</h1><p class="muted">Final rehberindeki ${E.facts.length} “bilmen gereken” bilgi: ünite ünite tanımlar, formüller, sayılar ve sık karıştırılan çiftler. Kartı çevir, bildim / tekrar de.</p>${tabs}</div>`;
+  const deckOf = name => E.facts.map((f, i) => ({ ...f, i })).filter(f => {
+    if (name === "hepsi") return true;
+    if (name === "tekrar") return ST.fk["f" + f.i] === 0;
+    if (/^u\d+$/.test(name)) return f.d === "u" + pad2(+name.slice(1));
+    return f.d === name;
+  });
+  const dname = f => /^u\d\d$/.test(f.d) ? "Ünite " + (+f.d.slice(1)) : f.d;
+  if (sel === "formul") {
+    page(main, head + `<div class="stack">${["Formüller", "Ezber sayıları", "Sık karıştırılan çiftler"].map(t => `<section class="stack"><h2>${t}</h2><div class="doc" style="max-width:none">${E.summ["_" + t] || ""}</div></section>`).join("")}</div>`);
+    return;
+  }
+  if (sel === "liste") {
+    const pg = page(main, head + `<div class="stack"><div class="filters"><input type="search" id="lq" placeholder="Bilgilerde ara"><select id="ld">${decks.filter(d => d[0] !== "tekrar").map(d => `<option value="${esc(d[0])}">${esc(d[1])}</option>`).join("")}</select></div><div class="tw"><table><thead><tr><th>Bilmen gereken</th><th>Cevap</th><th>Kaynak</th></tr></thead><tbody id="lb"></tbody></table></div></div>`);
+    const draw = () => { const q = fold($("#lq").value.trim()); $("#lb").innerHTML = deckOf($("#ld").value).filter(f => !q || fold(f.q + " " + f.a).includes(q)).map(f => `<tr><td><b>${esc(f.q)}</b></td><td>${f.a}</td><td class="small muted">${esc(dname(f))}</td></tr>`).join("") || '<tr><td colspan="3">Sonuç yok.</td></tr>'; };
+    $("#lq").oninput = draw; $("#ld").onchange = draw; draw(); return;
+  }
+  if (sel === "test") {
+    const pg = page(main, head + `<div class="cardq stack"><p class="small muted">Rastgele bir bilgi sorulur, 4 şıktan doğru cevabı seç. Yanlış şıklar aynı bölümdeki diğer bilgilerden gelir.</p><div class="row between"><select id="td">${decks.filter(d => d[0] !== "tekrar").map(d => `<option value="${esc(d[0])}">${esc(d[1])}</option>`).join("")}</select><span class="small num" id="ts"></span></div><div id="tq"></div><button class="btn" id="tn" hidden>Sonraki →</button></div>`);
+    let ok = 0, n = 0, cur;
+    const strip = h => { const x = document.createElement("div"); x.innerHTML = h; return x.textContent; };
+    const gen = () => { const deck = deckOf($("#td").value); const pool = deck.length >= 4 ? deck : deckOf("hepsi"); const f = pool[Math.floor(Math.random() * pool.length)]; const others = shuffle(pool.filter(x => x.a !== f.a)).slice(0, 3).map(x => strip(x.a)); const o = shuffle([strip(f.a), ...others]); return { q: `${dname(f)} · ${f.q}`, o, a: o.indexOf(strip(f.a)), f }; };
+    const draw = ch => { $("#tq").innerHTML = ""; $("#tq").appendChild(mcCard({ num: "?", tag: "Ezber", q: cur.q, o: cur.o, a: cur.a, e: "", chosen: ch, reveal: true, onPick: i => { if (ch != null) return; n++; if (i === cur.a) ok++; ST.fk["f" + cur.f.i] = i === cur.a ? 1 : 0; save(); $("#ts").textContent = `${ok} / ${n} doğru`; draw(i); $("#tn").hidden = false; } })); };
+    const next = () => { cur = gen(); $("#tn").hidden = true; draw(null); };
+    $("#tn").onclick = next; $("#td").onchange = next; next(); return;
+  }
+  // flash cards
+  const dk = r.split("-")[1] && r !== "ezber" ? decodeURIComponent(r.slice(6)) : "hepsi";
+  const cur = decks.find(d => d[0] === dk) ? dk : "hepsi";
+  const pg = page(main, head + `<div class="cardq stack"><select id="dsel" aria-label="Deste">${decks.map(d => `<option value="${esc(d[0])}" ${d[0] === cur ? "selected" : ""}>${esc(d[1])} (${deckOf(d[0]).length})</option>`).join("")}</select><div id="fc"></div></div>`);
+  $("#dsel").onchange = e => go("ezber-" + e.target.value);
+  const deck = shuffle(deckOf(cur)); let i = 0, open = false;
+  const box = $("#fc");
+  const draw = () => {
+    if (!deck.length) { box.innerHTML = '<div class="empty">Bu destede kart yok.</div>'; return; }
+    if (i >= deck.length) { box.innerHTML = `<div class="card stack" style="text-align:center"><span class="big">✓</span><b>Deste bitti.</b><button class="btn" id="re">Karıştır ve baştan</button></div>`; $("#re").onclick = () => { i = 0; draw(); }; return; }
+    const f = deck[i]; const st = ST.fk["f" + f.i];
+    box.innerHTML = `<div class="row between small muted" style="margin:6px 0 8px"><span>${esc(dname(f))}${st === 1 ? ' · <span class="pill ok">bildim</span>' : st === 0 ? ' · <span class="pill warn">tekrar</span>' : ""}</span><span class="num">${i + 1} / ${deck.length}</span></div>
+      <div class="card fcard" id="fq"><p class="qt">${esc(f.q)}</p>${open ? `<div style="font-size:18px">${f.a}</div>` : '<span class="small muted">Cevabı görmek için dokun (boşluk tuşu)</span>'}</div>
+      <div class="row between" style="margin-top:12px"><button class="btn plain" id="bk" ${i ? "" : "disabled"}>←</button><div class="row">${open ? '<button class="btn ghost" id="un">Tekrar</button><button class="btn" id="kn">Bildim</button>' : '<button class="btn" id="op">Cevabı göster</button>'}</div></div>`;
+    const set = v => { ST.fk["f" + f.i] = v; save(); i++; open = false; draw(); };
+    $("#fq").onclick = () => { open = !open; draw(); };
+    if ($("#op")) $("#op").onclick = () => { open = true; draw(); };
+    if ($("#kn")) $("#kn").onclick = () => set(1);
+    if ($("#un")) $("#un").onclick = () => set(0);
+    $("#bk").onclick = () => { i--; open = false; draw(); };
+  };
+  draw();
+  KEYS = e => { if (e.key === " ") { e.preventDefault(); const b = $("#op") || $("#fq"); b && b.click(); } else if (e.key === "ArrowRight" || e.key === "1") { const b = $("#kn"); b && b.click(); } else if (e.key === "2") { const b = $("#un"); b && b.click(); } else if (e.key === "ArrowLeft") { const b = $("#bk"); b && !b.disabled && b.click(); } };
+};
+
+/* ---- final rehberi 25 karma soru ---- */
+ROUTES.karma = async (r, main) => {
+  const E = await getJSON("ezber"); const S = ST.karma;
+  const pg = page(main, `<div class="stack"><div class="uhead"><span class="eyebrow">Final rehberi</span><h1>Karma deneme: 25 soru</h1><p class="muted">Final rehberinin son bölümündeki 25 soru, artık açıklamalı ve tıklanabilir. 20 ve üstü doğru = hazırsın; 15'in altıysa rehberin 2–4. bölümlerini bir tur daha oku.</p></div>
+    <div class="scorebar"><div class="row between"><span class="small num" id="ks"></span><button class="btn sm ghost" id="kr">Baştan çöz</button></div></div><div class="grid" id="kl"></div></div>`);
+  const upd = () => { const n = Object.keys(S).length; const ok = E.karma.filter((q, j) => S[j] === q.a).length; $("#ks").innerHTML = `<b>${ok}</b> doğru · ${n - ok} yanlış · ${25 - n} cevapsız${n === 25 ? ` · <span class="pill ${ok >= 20 ? "ok" : ok >= 15 ? "warn" : "bad"}">${ok >= 20 ? "Hazırsın" : ok >= 15 ? "İyi, biraz daha" : "Rehberi tekrar oku"}</span>` : ""}`; };
+  const card = j => { const q = E.karma[j]; const id = "k-" + (j + 1); const c = mcCard({ id, src: "Final rehberi karma", c: KARMA_C[j], num: j + 1, tag: CATN[KARMA_C[j]], q: q.q, o: q.o, a: q.a, e: q.e, chosen: S[j], reveal: true, onPick: i => { if (S[j] != null) return; S[j] = i; markAnswer(id, { ...q, src: "Final rehberi karma, soru " + (j + 1), c: KARMA_C[j] }, i === q.a); save(); c.replaceWith(card(j)); upd(); } }); return c; };
+  E.karma.forEach((q, j) => $("#kl").appendChild(card(j)));
+  $("#kr").onclick = () => { ST.karma = {}; save(); route(); };
+  upd();
+};
+
+/* ---- starred questions ---- */
+ROUTES.yildiz = async (r, main) => {
+  const ids = Object.keys(ST.star);
+  if (!ids.length) { page(main, `<div class="uhead"><span class="eyebrow">İşaretlediklerim</span><h1>Henüz işaretli soru yok</h1></div><div class="empty">Herhangi bir sorunun sağ üstündeki ☆ yıldıza basınca buraya düşer. Emin olmadığın, tekrar bakmak istediğin soruları işaretle.<br><br><a class="btn" href="#quiz">Quiz merkezine dön</a></div>`); return; }
+  const pg = page(main, `<div class="stack"><div class="uhead"><span class="eyebrow">İşaretlediklerim</span><h1>${ids.length} işaretli soru</h1><div class="row"><button class="btn" id="yt">Test olarak çöz</button></div></div><div class="grid" id="yl"></div></div>`);
+  ids.forEach((id, j) => { const q = ST.star[id]; let ch = null; const mk = () => mcCard({ id, src: q.src, c: q.c, num: j + 1, tag: q.src, q: q.q, o: q.o, a: q.a, e: q.e, chosen: ch, reveal: true, onPick: i => { if (ch != null) return; ch = i; markAnswer(id, q, i === q.a); const n = mk(); c.replaceWith(n); c = n; } }); let c = mk(); $("#yl").appendChild(c); });
+  $("#yt").onclick = () => { SESSION = { qs: shuffle(ids.map(id => ({ id, ...ST.star[id] }))), ans: [], i: 0, inst: true, done: false, title: "İşaretli sorular testi" }; saveSess(); go("test"); };
+};
+
+/* ---- glossary ---- */
+ROUTES.sozluk = async (r, main) => {
+  const G = await getJSON("sozluk"); const cats = [...new Set(G.map(g => g.c))];
+  let cat = null;
+  const pg = page(main, `<div class="stack"><div class="uhead"><span class="eyebrow">Sözlük</span><h1>Terimler ve kısaltmalar</h1><p class="muted">${G.length} terim: anatomi, fizyoloji, antrenman, ölçüm, beslenme, eğitmenlik ve tüm kısaltmalar (FITT, SAID, EQF, PAR-Q…). Türkçe karakter olmadan da arar.</p></div>
+    <input type="search" id="gq" placeholder="Terim ara (ör. eksantrik, KAHR, rotator)" style="font-size:17px;padding:11px 14px">
+    <div class="chipsel" id="gc"><button aria-pressed="true" data-c="">Hepsi</button>${cats.map(c => `<button aria-pressed="false" data-c="${esc(c)}">${esc(c)}</button>`).join("")}</div>
+    <div class="small muted" id="gn"></div><div class="grid" id="gl" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))"></div></div>`);
+  const draw = () => { const q = fold($("#gq").value.trim()); const l = G.filter(g => (!cat || g.c === cat) && (!q || fold(g.t + " " + g.x).includes(q))); $("#gn").textContent = `${l.length} terim`; $("#gl").innerHTML = l.map(g => `<div class="card" style="padding:14px 16px;display:grid;gap:4px"><div class="row between"><b style="font-size:17px">${esc(g.t)}</b><span class="pill">${esc(g.c)}</span></div><span class="small">${esc(g.x)}</span></div>`).join("") || '<div class="empty">Bulunamadı.</div>'; };
+  $("#gq").oninput = draw;
+  $$("#gc button").forEach(b => b.onclick = () => { cat = b.dataset.c || null; $$("#gc button").forEach(x => x.setAttribute("aria-pressed", x === b)); draw(); });
+  draw();
+};
+
+/* ---- statistics & weak spots ---- */
+ROUTES.istatistik = async (r, main) => {
+  const H = ST.hist; const per = {}; CATS.forEach(c => per[c.k] = { t: 0, o: 0 });
+  H.forEach(h => { if (h[2] && per[h[2]]) { per[h[2]].t++; per[h[2]].o += h[1]; } });
+  const days = []; for (let i = 13; i >= 0; i--) { const k = todayKey(Date.now() - i * 864e5); const l = H.filter(h => todayKey(h[0]) === k); days.push({ k, n: l.length, o: l.reduce((a, h) => a + h[1], 0) }); }
+  const mx = Math.max(10, ...days.map(d => d.n));
+  const weak = CATS.filter(c => per[c.k].t >= 5).map(c => ({ ...c, p: per[c.k].o / per[c.k].t })).sort((a, b) => a.p - b.p).slice(0, 3);
+  const untouched = CATS.filter(c => per[c.k].t < 5);
+  const catLinks = { fa: ["u03", "u09", "u14", "atlas"], fiz: ["u02", "u04", "u13"], ant: ["u01", "u06", "u12", "u18"], bes: ["u08", "u17"], egi: ["u08", "u16"], hiz: ["u15", "u07"], olc: ["u05", "proje-testler"] };
+  const lk = x => x.startsWith("u") ? `<a href="#${x}">Ünite ${+x.slice(1)}</a>` : `<a href="#${x}">${x === "atlas" ? "Atlas" : "Testler tablosu"}</a>`;
+  const unitRows = UNITS.map(u => { const s = unitStats(u.k); const ah = Object.values(ST.ah[u.k] || {}); const kn = ah.filter(v => v === 1).length; return `<tr><td><a href="#${u.k}">${u.no}. ${esc(shortT(u.t))}</a></td><td>${ST.read[u.k] ? '<span class="pill ok">✓</span>' : '<span class="muted">—</span>'}</td><td class="num">${s.n ? `${s.ok}/${s.n}` : "—"}</td><td class="num">${u.nOrig ? `${kn}/${u.nOrig}` : "—"}</td><td class="num">${s.best != null ? "%" + s.best : "—"}</td></tr>`; }).join("");
+  const den = [0, 1, 2].map(i => { if (!ST.den.done[i]) return null; return ST.den; });
+  const D = await getJSON("exams").catch(() => null);
+  const denRows = D ? [0, 1, 2].map(i => { const a = ST.den.st[i] || {}; const n = Object.keys(a).length; const ok = D.exams[i].filter((q, j) => a[j] === q.a).length; return `<tr><td><a href="#deneme-${i + 1}">Deneme ${i + 1}</a></td><td>${ST.den.done[i] ? '<span class="pill acc">bitti</span>' : n ? "devam ediyor" : "başlanmadı"}</td><td class="num">${n ? `${ok} / ${n}` : "—"}</td><td class="num">${ST.den.t[i] ? Math.floor(ST.den.t[i] / 60) + " dk" : "—"}</td></tr>`; }).join("") : "";
+  const fkv = Object.values(ST.fk); const tot = H.length, okAll = H.reduce((a, h) => a + h[1], 0);
+  page(main, `<div class="stack"><div class="uhead"><span class="eyebrow">İstatistik</span><h1>Nerede güçlüsün, nerede eksiksin?</h1><p class="muted">Bu cihazda çözdüğün tüm sorulardan hesaplanır (ünite quizleri, karma testler, denemeler, yanlış defteri).</p></div>
+    <section class="kpis"><div class="card kpi"><b>${tot}</b><span>toplam cevap</span></div><div class="card kpi"><b>${tot ? Math.round(okAll / tot * 100) + "%" : "–"}</b><span>genel doğruluk</span></div><div class="card kpi"><b>${todayCount()}</b><span>bugün çözülen (hedef ${ST.cfg.goal})</span></div><div class="card kpi"><b>${fkv.filter(v => v === 1).length}</b><span>ezber kartı “bildim”</span></div></section>
+    <section class="card stack"><h2>Konu alanına göre doğruluk</h2><div class="dist">${CATS.map(c => { const p = per[c.k]; const v = p.t ? Math.round(p.o / p.t * 100) : 0; return `<div class="r"><span>${esc(c.n)} <span class="muted small">(${p.t})</span></span><div class="bar ${v >= 70 ? "ok" : ""}"><i style="width:${v}%"></i></div><b class="num">${p.t ? "%" + v : "–"}</b></div>`; }).join("")}</div>
+      <p class="small muted">Yeşil çubuk %70 barajının üstü. Sınavdaki ağırlıklar: anatomi %20, antrenman %30, ölçüm %12…</p></section>
+    <section class="card stack"><h2>Ne çalışmalısın?</h2>${weak.length ? `<ol class="steps">${weak.map(w => `<li><b>${esc(w.n)}</b> · doğruluk %${Math.round(w.p * 100)}, sınav ağırlığı %${w.w}. Bak: ${catLinks[w.k].map(lk).join(", ")}</li>`).join("")}</ol>` : '<p class="muted">En az 5 soru çözdüğün alan olunca burada en zayıf 3 alanını göstereceğim.</p>'}
+      ${untouched.length ? `<p class="small muted">Henüz yeterince soru çözmediğin alanlar: ${untouched.map(c => esc(c.n)).join(", ")}. <a href="#quiz">Karma test</a> ile bunları da dene.</p>` : ""}</section>
+    <section class="card stack"><h2>Son 14 gün</h2><div style="display:grid;grid-template-columns:repeat(14,1fr);gap:4px;align-items:end;height:120px">${days.map(d => `<div title="${d.k}: ${d.n} soru, ${d.o} doğru" style="display:grid;align-items:end;height:100%"><div style="height:${d.n / mx * 100}%;min-height:${d.n ? 3 : 1}px;background:${d.n ? "var(--accent)" : "var(--line)"};border-radius:3px 3px 0 0;position:relative"><div style="position:absolute;bottom:0;left:0;right:0;height:${d.n ? d.o / d.n * 100 : 0}%;background:var(--ok);border-radius:3px 3px 0 0;opacity:.85"></div></div></div>`).join("")}</div>
+      <div class="row between small muted"><span>${days[0].k.slice(5)}</span><span>Mavi: çözülen · Yeşil: doğru</span><span>bugün</span></div></section>
+    <section class="stack"><h2>Ünite ünite</h2><div class="tw"><table><thead><tr><th>Ünite</th><th>Okundu</th><th>Ekstra quiz</th><th>AH bildim</th><th>En iyi</th></tr></thead><tbody>${unitRows}</tbody></table></div></section>
+    ${denRows ? `<section class="stack"><h2>Denemeler</h2><div class="tw"><table><thead><tr><th>Deneme</th><th>Durum</th><th>Doğru</th><th>Süre</th></tr></thead><tbody>${denRows}</tbody></table></div></section>` : ""}
+  </div>`);
+};
+
+/* ---- settings, backup ---- */
+ROUTES.ayarlar = async (r, main) => {
+  const pg = page(main, `<div class="stack"><div class="uhead"><span class="eyebrow">Ayarlar</span><h1>Ayarlar ve yedek</h1></div>
+    <section class="card stack"><h2>Sınav ve hedef</h2><div class="calc">
+      <label><span>Yazılı sınav tarihi</span><input type="date" id="sx" value="${esc(ST.cfg.exam)}" style="font:inherit;padding:9px 12px;border:1px solid var(--line2);border-radius:8px;background:var(--surface);color:var(--ink)"></label>
+      <label><span>Günlük soru hedefi</span><input type="number" id="sg" min="5" step="5" value="${ST.cfg.goal}"></label></div>
+      <p class="small muted">Tarihi girersen ana sayfada geri sayım ve son 7 günün tekrar planı çıkar.</p></section>
+    <section class="card stack"><h2>Görünüm</h2>
+      <div class="row"><span>Yazı boyutu</span><span class="seg" id="fz">${[[0.9, "Küçük"], [1, "Normal"], [1.12, "Büyük"], [1.25, "Çok büyük"]].map(([v, l]) => `<button data-v="${v}" aria-selected="${ST.cfg.fz == v}">${l}</button>`).join("")}</span></div>
+      <div class="row"><span>Tema</span><span class="seg" id="th">${[["", "Cihaza göre"], ["light", "Açık"], ["dark", "Koyu"]].map(([v, l]) => `<button data-v="${v}" aria-selected="${(ST.theme || "") === v}">${l}</button>`).join("")}</span></div></section>
+    <section class="card stack"><h2>İlerlemeni yedekle ve taşı</h2>
+      <p class="small muted">İlerlemen (okunan üniteler, quiz cevapları, yanlış defteri, işaretli sorular, notlar, denemeler, hesaplayıcı değerleri) sadece bu tarayıcıda durur. Telefondan bilgisayara geçerken: burada <b>Yedeği indir</b>, diğer cihazda <b>Yedeği yükle</b>.</p>
+      <div class="row"><button class="btn" id="bx">Yedeği indir</button><label class="btn ghost" style="cursor:pointer">Yedeği yükle<input type="file" id="bi" accept="application/json,.json" hidden></label><button class="btn plain" id="bc">Panoya kopyala</button></div>
+      <details><summary class="small">Dosya yerine metinle taşı</summary><div class="stack" style="margin-top:8px"><textarea id="bt" rows="4" style="width:100%;font:13px monospace;padding:10px;border:1px solid var(--line2);border-radius:8px;background:var(--surface);color:var(--ink)" placeholder="Diğer cihazda kopyaladığın yedek metnini buraya yapıştır"></textarea><button class="btn sm" id="bl">Metinden yükle</button></div></details></section>
+    <section class="card stack"><h2>Sıfırla</h2><p class="small muted">Tüm ilerlemeyi siler. Geri alınamaz, önce yedek almanı öneririm.</p><div><button class="btn plain" id="rs" style="color:var(--bad);border-color:var(--bad)">Tüm ilerlemeyi sil</button></div></section>
+    <a class="tile" href="#yenilikler"><h3>Yenilikler ve eksikler listesi →</h3><span class="small muted">Sitenin analizi: neler eksikti, neler eklendi, neler hâlâ yapılamıyor.</span></a></div>`);
+  $("#sx").onchange = e => { ST.cfg.exam = e.target.value; save(); toast("Sınav tarihi kaydedildi"); };
+  $("#sg").onchange = e => { ST.cfg.goal = Math.max(5, +e.target.value || 40); save(); };
+  $$("#fz button").forEach(b => b.onclick = () => { ST.cfg.fz = +b.dataset.v; document.documentElement.style.setProperty("--fz", ST.cfg.fz); save(); $$("#fz button").forEach(x => x.setAttribute("aria-selected", x === b)); });
+  $$("#th button").forEach(b => b.onclick = () => { ST.theme = b.dataset.v || null; applyTheme(); save(); $$("#th button").forEach(x => x.setAttribute("aria-selected", x === b)); });
+  const dump = () => { let calc = null; try { calc = JSON.parse(localStorage.getItem("fcm-calc") || "null"); } catch (e) { } return JSON.stringify({ app: "fitness-calisma", v: 1, at: new Date().toISOString(), st: ST, calc }); };
+  const load = txt => { try { const o = JSON.parse(txt); if (o.app !== "fitness-calisma" || !o.st) throw 0; ST = Object.assign(ST, o.st); localStorage.setItem(KEY, JSON.stringify(ST)); if (o.calc) localStorage.setItem("fcm-calc", JSON.stringify(o.calc)); toast("Yedek yüklendi"); setTimeout(() => location.reload(), 700); } catch (e) { toast("Bu dosya geçerli bir yedek değil"); } };
+  $("#bx").onclick = () => { const b = new Blob([dump()], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = `fitness-calisma-yedek-${todayKey()}.json`; document.body.appendChild(a); a.click(); a.remove(); };
+  $("#bi").onchange = e => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => load(rd.result); rd.readAsText(f); };
+  $("#bc").onclick = () => { const t = dump(); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast("Yedek metni kopyalandı"), () => { $("#bt").value = t; $("details", pg).open = true; toast("Metni elle kopyala"); }); };
+  $("#bl").onclick = () => load($("#bt").value);
+  $("#rs").onclick = () => { if (confirm("Tüm ilerleme silinsin mi? Bu geri alınamaz.")) { try { localStorage.removeItem(KEY); localStorage.removeItem("fcm-calc"); } catch (e) { } location.hash = "home"; location.reload(); } };
+};
+
+/* ---- weekly program builder (bitirme projesi) ---- */
+const PDAY = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
+function defaultProgram() {
+  return { ad: "", hedef: "Yağ oranını azaltmak, aerobik kapasiteyi ve core dayanıklılığını artırmak", sure: "8 hafta", gunler: [
+    { gun: "Pazartesi", isinma: "5–10 dk bisiklet (%50 KAHR) + dinamik germe", ana: [["Goblet Squat", "2", "15", "Hafif", "60 sn", "Kontrollü iniş"], ["Push-up (dizler yerde)", "2", "12", "Vücut ağırlığı", "60 sn", ""], ["Seated Row", "2", "15", "%50 1MT", "60 sn", "Kürek kemikleri geri"], ["Plank", "2", "20 sn", "—", "45 sn", ""]], kardiyo: "Eliptik 20 dk, %50–60 KAHR (133–143)", soguma: "5 dk yürüyüş + statik germe (hamstring, kalça fleksörü, göğüs) 20–30 sn" },
+    { gun: "Çarşamba", isinma: "5–10 dk tempolu yürüyüş + dinamik germe", ana: [["Leg Press", "2", "15", "Hafif", "60 sn", ""], ["Lat Pulldown", "2", "15", "%50 1MT", "60 sn", ""], ["Dead Bug", "2", "10/taraf", "—", "45 sn", ""]], kardiyo: "Bisiklet 25 dk, %50–60 KAHR", soguma: "Statik germe + SMR (baldır, quadriceps)" },
+    { gun: "Cuma", isinma: "5–10 dk bisiklet + dinamik germe", ana: [["Step-up", "2", "12/bacak", "Vücut ağırlığı", "60 sn", ""], ["Chest Press (makine)", "2", "15", "%50 1MT", "60 sn", ""], ["Bird Dog", "2", "10/taraf", "—", "45 sn", ""]], kardiyo: "Tempolu yürüyüş (eğim %1–3) 25 dk", soguma: "Statik germe" }
+  ] };
+}
+let PROG = (() => { try { return JSON.parse(localStorage.getItem("fcm-prog") || "null"); } catch (e) { return null; } })() || defaultProgram();
+function projeProgram(main, head) {
+  getJSON("atlas").then(A => { const dl = $("#exnames"); if (dl) dl.innerHTML = A.EX.map(e => `<option value="${esc(e.n)}">`).join(""); }).catch(() => { });
+  const sv = () => { try { localStorage.setItem("fcm-prog", JSON.stringify(PROG)); } catch (e) { } };
+  const inp = (path, v, ph = "", w = "") => `<input type="text" data-p="${path}" value="${esc(v)}" placeholder="${esc(ph)}" ${w ? `style="width:${w}"` : ""} list="${path.endsWith(".0") ? "exnames" : ""}">`;
+  const draw = () => {
+    const pg = page(main, head + `<datalist id="exnames"></datalist><div class="stack">
+      <p class="muted noprint">Bitirme projesinin “uygulama” kısmı için haftalık program ve birim antrenman formu. Workshop vakasına uygun örnekle dolu geliyor; değiştir, gün ekle, yazdır ya da PDF olarak kaydet. Egzersiz adına yazarken atlastaki 47 hareket öneri olarak çıkar.</p>
+      <section class="card stack"><div class="calc"><label><span>Üye</span>${inp("ad", PROG.ad, "Ad soyad")}</label><label style="grid-column:span 2"><span>Program hedefi</span>${inp("hedef", PROG.hedef)}</label><label><span>Süre</span>${inp("sure", PROG.sure)}</label></div></section>
+      ${PROG.gunler.map((g, di) => `<section class="card stack"><div class="row between"><select data-p="gunler.${di}.gun">${PDAY.map(d => `<option ${d === g.gun ? "selected" : ""}>${d}</option>`).join("")}</select><button class="btn sm ghost noprint" data-del="${di}">Günü sil</button></div>
+        <label class="stack" style="gap:4px"><b class="small">1) Harekete hazırlık (ısınma)</b>${inp(`gunler.${di}.isinma`, g.isinma)}</label>
+        <b class="small">2) Ana bölüm · kuvvet</b>
+        <div class="tw"><table class="prog"><thead><tr><th>Egzersiz</th><th>Set</th><th>Tekrar</th><th>Yük</th><th>Dinlenme</th><th>Not</th><th class="noprint"></th></tr></thead><tbody>${g.ana.map((x, ei) => `<tr>${x.map((v, ci) => `<td>${inp(`gunler.${di}.ana.${ei}.${ci}`, v, "", ci === 0 ? "190px" : ci === 5 ? "150px" : "80px")}</td>`).join("")}<td class="noprint"><button class="ibtn" data-rm="${di}.${ei}" aria-label="Satırı sil">✕</button></td></tr>`).join("")}</tbody></table></div>
+        <div class="noprint"><button class="btn sm plain" data-add="${di}">+ Egzersiz ekle</button></div>
+        <label class="stack" style="gap:4px"><b class="small">Ana bölüm · kardiyo (FITT)</b>${inp(`gunler.${di}.kardiyo`, g.kardiyo)}</label>
+        <label class="stack" style="gap:4px"><b class="small">3) Soğuma</b>${inp(`gunler.${di}.soguma`, g.soguma)}</label></section>`).join("")}
+      <div class="row noprint"><button class="btn plain" id="ad">+ Gün ekle</button><button class="btn" onclick="window.print()">Yazdır / PDF</button><button class="btn ghost" id="rs">Örneğe dön</button></div>
+      <div class="callout small">Kontrol: büyük ve çok eklemli hareketler önce · yeni başlayana haftada 2–3 gün tüm vücut · kuvvette devamlılık için 30–90 sn dinlenme · kardiyo Karvonen bandında · her seans ısınma–ana bölüm–soğuma · 6–8 hafta sonra yeniden test.</div></div>`);
+    $$("input[data-p],select[data-p]", pg).forEach(el => el.addEventListener("input", () => { const ks = el.dataset.p.split("."); let o = PROG; ks.slice(0, -1).forEach(k => o = o[k]); o[ks[ks.length - 1]] = el.value; sv(); }));
+    $$("[data-add]", pg).forEach(b => b.onclick = () => { PROG.gunler[+b.dataset.add].ana.push(["", "2", "12", "", "60 sn", ""]); sv(); draw(); });
+    $$("[data-rm]", pg).forEach(b => b.onclick = () => { const [d, e] = b.dataset.rm.split(".").map(Number); PROG.gunler[d].ana.splice(e, 1); sv(); draw(); });
+    $$("[data-del]", pg).forEach(b => b.onclick = () => { PROG.gunler.splice(+b.dataset.del, 1); sv(); draw(); });
+    $("#ad").onclick = () => { PROG.gunler.push({ gun: "Cumartesi", isinma: "", ana: [["", "2", "12", "", "60 sn", ""]], kardiyo: "", soguma: "" }); sv(); draw(); };
+    $("#rs").onclick = () => { if (confirm("Program örnek haline dönsün mü?")) { PROG = defaultProgram(); sv(); draw(); } };
+  };
+  draw();
+}
+
+/* ---- changelog / analysis ---- */
+ROUTES.yenilikler = async (r, main) => {
+  const L = (t, items) => `<section class="card stack"><h2>${t}</h2><ul class="steps" style="list-style:disc">${items.map(i => `<li>${i}</li>`).join("")}</ul></section>`;
+  page(main, `<div class="stack"><div class="uhead"><span class="eyebrow">Sürüm 2 · 4 Kasım 2026</span><h1>Analiz: eksikler ve eklenenler</h1><p class="muted">Siteyi baştan sona taradım. Aşağıda neyin eksik olduğu, ne eklendiği ve neyin hâlâ yapılamadığı var.</p></div>
+  ${L("Tespit edilen eksikler", [
+    "Final rehberindeki ünite özetleri ve 250 “bilmen gereken” bilgi sadece uzun bir sayfada duruyordu; ünite sayfasından ulaşılamıyordu ve çalışılabilir (kart/test) değildi.",
+    "Rehberdeki 25 karma soru düz metindi; tıklanamıyor, puanlanmıyor, açıklaması yoktu (sadece 4 hesap açıklaması vardı).",
+    "Terimler ve kısaltmalar (FITT, SAID, KAHR, EQF, PNF…) tek yerde değildi.",
+    "Hangi konuda zayıf olduğunu gösteren bir istatistik yoktu; yanlış defteri tek doğru cevapta siliniyordu (şans eseri doğru da siliyordu).",
+    "İlerleme sadece bir tarayıcıda duruyordu; telefon ile bilgisayar arasında taşımanın yolu yoktu.",
+    "Sınav tarihine göre geri sayım, günlük hedef ve son hafta planı yoktu.",
+    "Sonra tekrar bakmak için soru işaretleme ve ünite ünite kendi notlarını alma yoktu.",
+    "Bitirme projesinin “uygulama” adımı (haftalık program, birim antrenman formu) için doldurulabilir bir form yoktu.",
+    "Mobilde alt menüde olmayan sayfalara (rehber, arama, ayarlar) ulaşmak zordu.",
+    "Klavye kısayolu, yazı boyutu ayarı ve yeni sürüm bildirimi yoktu."])}
+  ${L("Bu sürümde eklenenler", [
+    "<a href='#u05-ozet'>Her ünitede “Sınav özeti ve notlar” sekmesi</a>: rehberdeki en çok çıkacak bilgiler, tahmini soru sayısı ve kendi notların.",
+    "<a href='#ezber'>Ezber kartları</a>: 250 bilgi, ünite ünite ve formül/sayı/karıştırılan çift desteleri; liste görünümü ve otomatik ezber testi.",
+    "<a href='#karma'>Final rehberi karma 25 soru</a>: interaktif, 25'inin de açıklaması yazıldı; karma test havuzuna da eklendi.",
+    "<a href='#sozluk'>Sözlük</a>: 188 terim ve kısaltma, kategoriye göre süzme; genel aramaya da dahil.",
+    "<a href='#istatistik'>İstatistik</a>: konu alanına göre doğruluk, en zayıf 3 alan ve hangi üniteye bakacağın, son 14 gün grafiği, ünite ve deneme tablosu.",
+    "Akıllı yanlış defteri: bir soru ancak üst üste 2 kez doğru cevaplanınca defterden çıkar.",
+    "Soru işaretleme (☆) ve <a href='#yildiz'>İşaretlediklerim</a> listesi / testi.",
+    "<a href='#ayarlar'>Ayarlar</a>: sınav tarihi, günlük hedef, yazı boyutu, tema, yedeği indir / yükle / panoya kopyala, sıfırlama.",
+    "Ana sayfada sınav geri sayımı, bugünkü hedef çubuğu, “Hızlı 10 soru” ve “Günün sorusu”; sınava 7 gün kala son hafta planı (işaretlenebilir).",
+    "<a href='#proje-program'>Bitirme projesi → Program oluşturucu</a>: haftalık program ve birim antrenman formu, atlastaki hareketlerden öneri, yazdır / PDF.",
+    "Denemelerde süre sınırı (60 / 90 / 120 dk geri sayım, süre bitince otomatik puanlama).",
+    "Klavye kısayolları: testte 1–4 veya A–D şık seçer, Enter / → sonraki soru; kartlarda boşluk çevirir.",
+    "Mobilde menü düğmesi (☰) ile tüm sayfalara erişim; sitenin yeni sürümü yayınlanınca “yenile” bildirimi."])}
+  ${L("Hâlâ yapılamayanlar (neden)", [
+    "Ünite 14–18'in Athletic House quizi yok: platformda bu ünitelerin quizi verilmemişti. Bu ünitelerde ekstra quiz ve ezber kartları var.",
+    "Otomatik cihazlar arası senkron: sunucu ve hesap gerektirir. Yerine yedek indir / yükle eklendi.",
+    "Video derslerin kendisi: dosyalar büyük ve telif nedeniyle siteye konmadı; içerikleri ünite anlatımlarında."])}
+  </div>`);
+};
+
+/* ---- keyboard shortcuts (per view hook) ---- */
+let KEYS = null;
+document.addEventListener("keydown", e => {
+  if (e.target.closest && e.target.closest("input,textarea,select")) return;
+  if (KEYS) { KEYS(e); return; }
+  const r = location.hash.slice(1);
+  if (/^(test|atlas-test|ezber-test)$/.test(r) || r === "") {
+    const opts = $$(".q .opt:not([disabled])");
+    const m = { "1": 0, "2": 1, "3": 2, "4": 3, a: 0, b: 1, c: 2, d: 3 }[e.key.toLowerCase()];
+    if (m != null && opts[m]) { opts[m].click(); return; }
+    if (e.key === "Enter" || e.key === "ArrowRight") { const n = $("#nx") || $("#an") || $("#tn"); if (n && !n.hidden && !n.disabled) n.click(); }
+    if (e.key === "ArrowLeft") { const p = $("#pv"); if (p && !p.disabled) p.click(); }
+  }
+});
+
+/* ---- mobile menu sheet ---- */
+(() => {
+  const b = document.createElement("button"); b.className = "ibtn menub"; b.setAttribute("aria-label", "Menü"); b.innerHTML = icon("menu");
+  $(".top .in").insertBefore(b, $(".top .sp").nextSibling);
+  b.onclick = () => {
+    const sh = document.createElement("div"); sh.className = "sheet";
+    sh.innerHTML = `<div class="sheet-in" role="dialog" aria-label="Menü"><div class="row between"><b style="font-family:var(--display);font-size:22px">Menü</b><button class="ibtn" id="shx" aria-label="Kapat">✕</button></div>${NAV.map(n => `<a href="#${n[0]}">${icon(n[2])}<span>${n[1]}</span></a>`).join("")}<a href="#karma">${icon("quiz")}<span>Karma 25 soru</span></a><a href="#yildiz">${icon("star")}<span>İşaretlediklerim</span></a><a href="#yenilikler">${icon("guide")}<span>Yenilikler ve eksikler</span></a></div>`;
+    document.body.appendChild(sh);
+    const close = () => sh.remove();
+    sh.onclick = e => { if (e.target === sh || e.target.closest("a") || e.target.closest("#shx")) close(); };
+  };
+})();
+
 /* boot */
+window.addEventListener("hashchange", () => $$(".sheet").forEach(s => s.remove()));
 route();
 if ("serviceWorker" in navigator && window.top === window && /^https:/.test(location.protocol) && !/claude|anthropic/.test(location.hostname)) {
-  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => { }));
+  const had = !!navigator.serviceWorker.controller;
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").then(reg => { setInterval(() => reg.update().catch(() => { }), 30 * 60 * 1000); }).catch(() => { }));
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!had) return;
+    const t = document.createElement("div"); t.className = "toast"; t.innerHTML = 'Sitenin yeni sürümü hazır. <button class="btn sm" style="margin-left:8px">Yenile</button>';
+    t.querySelector("button").onclick = () => location.reload(); document.body.appendChild(t);
+  });
 }
