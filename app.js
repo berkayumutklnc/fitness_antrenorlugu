@@ -642,7 +642,7 @@ const TESTS = [
   { id: "1mt", g: "Kuvvet", ad: "1 MT (bir maksimum tekrar) tahmini", olc: "Bir hareketteki maksimal kuvvet; yüklemenin %'si için temel", mal: "Serbest ağırlık veya makine", pr: ["Isınma setlerinden sonra 3–10 tekrar yapılabilen bir yükle tükenişe kadar tekrar yapılır.", "Yük ve tekrar sayısı formüle konur.", "Klasik 1 MT denemesi yeni başlayanda risklidir; tahmin formülü tercih edilir."], f: "1 MT = (ağırlık × tekrar × 0,0333) + ağırlık · Brzycki: 1 MT = ağırlık / (1,0278 − 0,0278 × tekrar)", sonuc: "Yüklemeler 1 MT'nin yüzdesiyle verilir: dayanıklılık ~%50, hipertrofi %60–80, maksimal kuvvet %85+.", ip: "Büyük kas ve çok eklemli hareketlerle (squat, bench press, row) yapılır." }
 ];
 
-const CASE = { s: "e", age: 35, kg: 95, cm: 175, bel: 105, kal: 103, sf1: 30, sf2: 28, hr: 80, sys: "", dia: "", bm: 8, bs: 30, push: 13, squat: 50, situp: 15, plank: 25, sr: 10, srMode: "toe", gr: "", w1: "", r1: "", act: "1.2" };
+const CASE = { s: "e", age: 35, kg: 95, cm: 175, bel: 105, kal: 103, sf1: 30, sf2: 28, hr: 80, sys: "", dia: "", bm: 8, bs: 30, push: 13, squat: 50, situp: 15, plank: 25, sr: 10, srMode: "toe", gr: "", w1: "", r1: "", act: "1.45" };
 let CALC = Object.assign({}, CASE, (() => { try { return JSON.parse(localStorage.getItem("fcm-calc") || "null") || {}; } catch (e) { return {}; } })());
 
 ROUTES.proje = async (r, main) => {
@@ -730,7 +730,7 @@ function projeCalc(main, head) {
       <div class="calc">
         <label>Cinsiyet<select id="c_s"><option value="e">Erkek</option><option value="k">Kadın</option></select></label>
         ${F("age", "Yaş", "yıl", "1")}${F("kg", "Kilo", "kg")}${F("cm", "Boy", "cm")}
-        <label>Aktivite düzeyi<select id="c_act"><option value="1.2">Sedanter (1,2)</option><option value="1.375">Hafif aktif (1,375)</option><option value="1.6">Haftada 3–4 ılımlı (1,55–1,65)</option><option value="1.75">Çok aktif (1,75)</option></select></label>
+        <label>Aktivite düzeyi<select id="c_act"><option value="1.45">Hareketsiz yaşam (1,40–1,50)</option><option value="1.6">Haftada 3–4 kez ılımlı egzersiz (1,55–1,65)</option><option value="1.7">Haftada 4'ten fazla egzersiz (1,65–1,75)</option><option value="1.875">Haftada 6–7 kez, 1 saatten uzun (1,75–2,00)</option></select></label>
       </div></section>
     <section class="card stack"><h2>2. Sağlık ve vücut kompozisyonu</h2><div class="calc">
       ${F("hr", "Dinlenik nabız", "atım/dk", "1")}${F("sys", "Sistolik tansiyon", "mmHg", "1")}${F("dia", "Diyastolik tansiyon", "mmHg", "1")}
@@ -746,7 +746,7 @@ function projeCalc(main, head) {
       <label><span>1 MT tahmini <span class="muted">(kg × tekrar)</span></span><span class="row" style="gap:6px;flex-wrap:nowrap"><input type="number" inputmode="decimal" id="c_w1" value="${esc(CALC.w1)}" aria-label="ağırlık"><input type="number" inputmode="numeric" id="c_r1" value="${esc(CALC.r1)}" aria-label="tekrar"></span></label>
     </div></section>
     <section class="stack" id="out"></section></div>`);
-  $("#c_s").value = CALC.s; $("#c_act").value = CALC.act; $("#c_srMode").value = CALC.srMode;
+  $("#c_s").value = CALC.s; if (!["1.45", "1.6", "1.7", "1.875"].includes(String(CALC.act))) CALC.act = "1.45"; $("#c_act").value = CALC.act; $("#c_srMode").value = CALC.srMode;
   const ids = ["s", "age", "kg", "cm", "act", "hr", "sys", "dia", "bel", "kal", "sf1", "sf2", "bm", "bs", "push", "squat", "situp", "plank", "sr", "srMode", "gr", "w1", "r1"];
   const read = () => { ids.forEach(id => CALC[id] = $("#c_" + id).value); try { localStorage.setItem("fcm-calc", JSON.stringify(CALC)); } catch (e) { } };
   const num = id => { const v = CALC[id]; return v === "" || v == null || isNaN(+v) ? null : +v; };
@@ -796,10 +796,11 @@ function projeCalc(main, head) {
       html += `<h2>5. Karvonen hedef nabız aralıkları</h2><p class="small muted">Rezerv = ${res.max} − ${hr} = ${res.rez}. Hedef = rezerv × % + ${hr}.</p><div class="tw"><table><thead><tr><th>Şiddet</th><th>Hedef nabız</th><th>Kullanım</th></tr></thead><tbody>${z}</tbody></table></div>`;
     }
     if (kg) {
-      const bmh = (E ? 24 : 22) * kg, act = +CALC.act; const tdee = bmh * act;
+      const bmh = (E ? 24.2 : 22) * kg, act = +CALC.act; const tdee = bmh * act; const cm = +CALC.cm, ag = +CALC.age; const hb = cm && ag ? (E ? 66 + 13.7 * kg + 5 * cm - 6.8 * ag : 655 + 9.6 * kg + 1.7 * cm - 4.7 * ag) : 0;
       html += `<h2>6. Enerji, su ve hedef kilo</h2><div class="g3">
-        <div class="card kpi"><b>${fmt(bmh, 0)}</b><span>BMH (kcal/gün) · ${E ? "24" : "22"} × kilo</span></div>
-        <div class="card kpi"><b>${fmt(tdee, 0)}</b><span>Günlük ihtiyaç (× ${CALC.act})</span></div>
+        <div class="card kpi"><b>${fmt(bmh, 0)}</b><span>BMH (kcal/gün) · ${E ? "24,2" : "22"} × kilo</span></div>
+        ${hb ? `<div class="card kpi"><b>${fmt(hb, 0)}</b><span>BMH · Harris-Benedict (kilo, boy, yaş)</span></div>` : ""}
+        <div class="card kpi"><b>${fmt(tdee, 0)}</b><span>Günlük ihtiyaç · dolaylı BMH × ${String(CALC.act).replace(".", ",")}</span></div>
         <div class="card kpi"><b>${fmt(kg * 35 / 1000, 1)} L</b><span>Su ihtiyacı · 35 ml × kilo</span></div>
         ${res.lbm ? [25, 20].map(t => `<div class="card kpi"><b>${fmt(res.lbm / (1 - t / 100), 1)} kg</b><span>%${t} yağ için hedef kilo (yağsız kütle sabitken)</span></div>`).join("") : ""}
       </div>`;
@@ -810,7 +811,7 @@ function projeCalc(main, head) {
   };
   ids.forEach(id => $("#c_" + id).addEventListener("input", calc));
   $("#cCase").onclick = () => { CALC = Object.assign({}, CASE); try { localStorage.setItem("fcm-calc", JSON.stringify(CALC)); } catch (e) { } route(); };
-  $("#cClr").onclick = () => { CALC = { s: "e", act: "1.2", srMode: "box" }; ids.forEach(k => { if (CALC[k] == null) CALC[k] = ""; }); try { localStorage.setItem("fcm-calc", JSON.stringify(CALC)); } catch (e) { } route(); };
+  $("#cClr").onclick = () => { CALC = { s: "e", act: "1.45", srMode: "box" }; ids.forEach(k => { if (CALC[k] == null) CALC[k] = ""; }); try { localStorage.setItem("fcm-calc", JSON.stringify(CALC)); } catch (e) { } route(); };
   calc();
 }
 
