@@ -85,6 +85,7 @@ const NAV = [
   ["atlas", "Hareket atlası", "atlas", "Atlas"],
   ["proje", "Bitirme projesi", "proje", "Proje"],
   ["anatomi", "Anatomi kampı", "bone", null],
+  ["uygulama", "Uygulamalı sınav", "atlas", null],
   ["ezber", "Ezber kartları", "card", null],
   ["sozluk", "Sözlük", "dict", null],
   ["rehber", "Final rehberi", "guide", null],
@@ -969,6 +970,7 @@ ROUTES.home = async (r, main) => {
       ${T("quiz", "quiz", "Quiz merkezi", "Karma test oluştur, flash kartlarla çalış, yanlış defterini temizle.")}
       ${T("deneme", "exam", "Deneme sınavları", "Gerçek dağılımla 3 × 100 soru, konu bazlı karne." + (denBest.some(x => x != null) ? " Bitirdiğin deneme var." : ""))}
       ${T("anatomi", "bone", "Anatomi kampı", "Dokunmalı kas ve iskelet haritası, animasyonlu düzlemler, kası bul oyunu, hareket zinciri, kutu sistemli kartlar.")}
+      ${T("uygulama", "atlas", "Uygulamalı sınav", "Hoca 'omuza sagital düzlemde fleksiyon yaptır' derse: egzersiz, kaslar, Anlat → Göster → Uygulat → Düzelt metni ve pratik modu.")}
       ${T("atlas", "atlas", "Hareket analizi atlası", "47 egzersiz: eklem, hareket, düzlem, agonist, antagonist, sinerjist, stabilizatör, nötralizör.")}
       ${T("proje", "proje", "Bitirme projesi", "Testler tablosu, protokoller, norm hesaplayıcı ve değerlendirme rehberi.")}
       ${T("rehber", "guide", "Final sınav rehberi", "En çok çıkacak bilgiler, formüller, manuel hataları, son tekrar planı.")}
@@ -1359,6 +1361,7 @@ function anHome(r, main) {
         <li><b>4. gün · Arka yüz ve derin kaslar:</b> Arka yüz + derin kas listesi (rotator cuff, core kutusu, iliopsoas). Sonra "Kası bul" oyununu 10/10 yapana kadar oyna.</li>
         <li><b>5. gün · İskelet:</b> <a href="#anatomi-kemik">İskelet</a>: 21 kemik, omurga sayıları (7-12-5-5-4) ve kemik tipleri.</li>
         <li><b>6. gün · Hareket zinciri:</b> <a href="#anatomi-zincir">Hareket zinciri</a>: egzersizi gör, eklemi, hareketi, düzlemi ve kası sırayla bul. Quizdeki fotoğraf sorularının hepsi bu kalıp.</li>
+        <li><b>Uygulamalı sınava hazırlık:</b> <a href="#uygulama">Uygulamalı sınav</a> bölümünde her eklem hareketi için hangi egzersizi yaptıracağın ve üyeye nasıl öğreteceğin var.</li>
         <li><b>7. gün · Tekrar:</b> <a href="#anatomi-kart">Kartlar</a>da kutu sistemiyle tekrar et, sonra <a href="#u03-quiz">Ünite 3</a> ve <a href="#u09-quiz">Ünite 9</a> quizlerini çöz.</li>
       </ol>
       <p class="small muted">Sonraki günlerde her gün 5 dakika kart, 5 dakika "Kası bul", 5 dakika hareket zinciri yeterli.</p></section>
@@ -1624,6 +1627,346 @@ function anKart(r, main) {
   KEYS = e => { if (e.key === " ") { e.preventDefault(); if (!open) { open = true; draw(); } } else if (open && (e.key === "1" || e.key === "ArrowLeft")) ans(false); else if (open && (e.key === "2" || e.key === "ArrowRight")) ans(true); };
   cur = pickCard(); draw();
 }
+
+/* ============ Uygulamalı sınav: eklem hareketi → egzersiz → Anlat, Göster, Uygulat, Geri bildirim ============ */
+/* Öğretim sırası manuel s. 76–77 ve 136–138 (Ünite 16). Eklem-düzlem-kas bilgisi Ünite 3, 9, 14 ve atlas. */
+const UY = [
+  /* bölge, eklem, hareket, düzlem, egzersiz, alternatifler, agonist, yardımcı, göster açısı, anlat, kurulum[], uygulama[], hatalar[[hata, düzeltme komutu]], kolaylaştır/zorlaştır */
+  ["Üst ekstremite", "Omuz", "Fleksiyon", "Sagital", "Dumbbell front raise", "Kablo veya band ile front raise, plate front raise",
+    "Deltoid (ön)", "Pectoralis major (üst/klaviküler lifler), biceps brachii", "Yandan",
+    "Bu hareketin adı front raise. Omuz ekleminde, sagital düzlemde fleksiyon yaptırır: kolu öne doğru kaldırırız. Ana çalışan kas omzun ön kısmı, ön deltoid. Günlük hayatta kolunu öne uzatıp bir şey kaldırmanı kolaylaştırır.",
+    ["Ayaklar kalça genişliğinde, dizler hafif bükük", "Dumbbell'lar uyluğun önünde, avuçlar uyluğa bakıyor", "Göğüs dik, karın hafif sıkı, omuzlar aşağıda"],
+    ["Dirsek hafif bükük kalsın, kolu öne doğru omuz hizasına kadar kaldır", "Bir saniye dur, 2–3 saniyede kontrollü indir", "Kaldırırken nefes ver, indirirken al"],
+    [["Gövdeyi geriye atıp sallanarak kaldırmak", "Gövden sabit, sadece kollar hareket etsin. Ağırlığı azaltalım."], ["Omuzları kulaklara doğru kaldırmak (üst trapez devreye giriyor)", "Omuzların aşağıda, boynun uzun."], ["Omuz hizasının çok üstüne çıkmak", "Göz hizasında dur."], ["Kolu hızla düşürmek", "İnerken 2–3 saniye say, frenle."]],
+    "Kolaylaştır: tek kol, hafif ağırlık veya ağırlıksız. Zorlaştır: tempo yavaşlat, tepe noktada 2 sn bekle."],
+  ["Üst ekstremite", "Omuz", "Ekstansiyon", "Sagital", "Straight-arm pulldown (kablo veya band)", "Band ile kol düz aşağı çekiş, dumbbell pullover (ekstansiyon fazı)",
+    "Latissimus dorsi", "Teres major, deltoid (arka), triceps brachii (uzun baş)", "Yandan",
+    "Bu straight-arm pulldown. Omuz ekleminde sagital düzlemde ekstansiyon yaptırır: önde yukarıda duran kolu düz şekilde aşağı ve geriye getiririz. Ana kas sırtın en geniş kası latissimus dorsi.",
+    ["Kablonun karşısında, bir adım geride dur", "Kalçadan hafif öne eğil, sırt düz", "Barı omuz genişliğinde tut, kollar önde ve yukarıda, dirsekler hafif bükük"],
+    ["Kolları düz tutarak barı uyluklarına kadar çek", "Sonda kürek kemiklerini aşağı bastır, sırtını sık", "Kontrollü geri bırak; çekerken nefes ver"],
+    [["Dirsekleri büküp hareketi triceps pushdown'a çevirmek", "Kolların sabit bir çubuk gibi, dirsek açısı değişmesin."], ["Belin çukurlaşması", "Karnını sık, kaburgalar aşağı."], ["Gövdeyle sallanmak", "Gövde sabit, sadece kollar hareket etsin."]],
+    "Kolaylaştır: hafif band, daha kısa hareket açıklığı. Zorlaştır: daha yavaş eksantrik, tek kol."],
+  ["Üst ekstremite", "Omuz", "Abduksiyon", "Frontal", "Dumbbell lateral raise", "Kablo lateral raise, band lateral raise; shoulder press (abduksiyon + dirsek ekstansiyonu)",
+    "Deltoid (orta), supraspinatus (ilk 15°)", "Trapezius (üst), serratus anterior (skapulayı döndürür)", "Önden",
+    "Bu lateral raise. Omuz ekleminde frontal düzlemde abduksiyon yaptırır: kolu yana, vücudun orta hattından uzaklaştırırız. Ana kas omzun orta kısmı, orta deltoid. Hareketin ilk 15 derecesini rotator cuff'tan supraspinatus başlatır.",
+    ["Ayaklar kalça genişliğinde, dizler hafif bükük", "Dumbbell'lar yanlarda, avuçlar içe bakıyor", "Göğüs dik, omuzlar aşağıda"],
+    ["Dirsekler hafif bükük, kolları yana omuz hizasına kadar kaldır", "Dirsek ve el aynı yükseklikte, serçe parmak tarafı yukarı değil, avuç yere baksın", "Kontrollü indir; kaldırırken nefes ver"],
+    [["Omuzları kulaklara kaldırmak (shrug'a çevirmek)", "Omuzların aşağıda, boynun uzun. Ağırlığı azaltalım."], ["Omuz hizasının üstüne çıkmak", "Omuz hizasında dur, uçaktan kanat gibi."], ["Gövdeyle sallanarak kaldırmak", "Gövde sabit, karın sıkı."], ["Bilekleri dirsekten yukarı kaldırmak", "Dirsekler yukarıyı göstersin, eller dirsekleri takip etsin."]],
+    "Kolaylaştır: dirsekler 90° bükük, hafif ağırlık. Zorlaştır: tepe noktada 2 sn bekleme, yavaş indirme."],
+  ["Üst ekstremite", "Omuz", "Adduksiyon", "Frontal", "Lat pulldown (geniş tutuş, önden)", "Band ile pulldown, destekli barfiks",
+    "Latissimus dorsi", "Teres major, pectoralis major, biceps brachii, rhomboidler", "Önden veya yandan",
+    "Bu lat pulldown. Omuz ekleminde frontal düzlemde adduksiyon yaptırır: yukarıda yana açık kolları vücudun orta hattına doğru aşağı çekeriz. Ana kas latissimus dorsi; dirsek de fleksiyon yapar, biceps yardım eder.",
+    ["Diz pedini uyluklara oturacak şekilde ayarla", "Barı omuz genişliğinden biraz geniş tut", "Göğüs yukarı, gövde çok az geride"],
+    ["Önce kürek kemiklerini aşağı indir, sonra barı göğsünün üstüne çek", "Dirsekleri aşağı ve yanlara, cebine doğru götür", "Kontrollü yukarı bırak, kollar tam uzasın; çekerken nefes ver"],
+    [["Barı ensenin arkasına çekmek", "Barı göğsünün önüne çek, omzun güvende kalsın."], ["Gövdeyle geriye sallanarak çekmek", "Gövden sabit, sadece kollar ve sırt çalışsın."], ["Omuzların kulaklara kalkması", "Önce omuzları aşağı, sonra çek."], ["Yukarıda kolları tam uzatmamak", "Yukarıda tamamen uzan, sırtın gerilsin."]],
+    "Kolaylaştır: hafif ağırlık, band. Zorlaştır: yavaş eksantrik, aşağıda 1 sn sıkma."],
+  ["Üst ekstremite", "Omuz", "İç rotasyon", "Horizontal", "Band veya kablo ile iç rotasyon", "Yan yatarak dumbbell iç rotasyon",
+    "Subscapularis", "Latissimus dorsi, pectoralis major, teres major", "Önden",
+    "Bu band ile iç rotasyon. Omuz ekleminde horizontal (transvers) düzlemde iç rotasyon yaptırır: dirsek gövdenin yanında sabitken ön kolu karnına doğru çeviririz. Ana kas rotator cuff'tan subscapularis. Omuzu stabilize etmek için yapılır.",
+    ["Bandı dirsek hizasında, çalışan kolun tarafına bağla", "Yan dur, dirsek 90° bükük ve gövdeye yapışık; arasına havlu sıkıştırabilirsin", "Ön kol dışarıyı gösteriyor"],
+    ["Dirseği yerinden oynatmadan ön kolu karnına doğru çevir", "Yavaşça başlangıca dön", "Hafif yük, 12–15 tekrar"],
+    [["Dirseğin gövdeden açılması", "Dirseğin gövdene yapışık, havluyu düşürme."], ["Gövdeyi döndürerek çekmek", "Göbeğin önü göstersin, sadece ön kol dönsün."], ["Ağır band kullanmak", "Bu küçük bir kas, hafif bandla kontrollü yap."]],
+    "Kolaylaştır: daha kısa açıklık. Zorlaştır: kol 90° yana açık pozisyonda (90/90) yap."],
+  ["Üst ekstremite", "Omuz", "Dış rotasyon", "Horizontal", "Band veya kablo ile dış rotasyon", "Yan yatarak dumbbell dış rotasyon, face pull",
+    "Infraspinatus, teres minor", "Deltoid (arka)", "Önden",
+    "Bu band ile dış rotasyon. Omuz ekleminde horizontal düzlemde dış rotasyon yaptırır: dirsek gövdenin yanında sabitken ön kolu dışarı açarız, kapıyı dışa açar gibi. Ana kaslar rotator cuff'tan infraspinatus ve teres minor. Omuz sağlığı ve postür için çok önemli.",
+    ["Bandı dirsek hizasında, çalışan kolun ters tarafına bağla", "Dirsek 90° bükük ve gövdeye yapışık, arasında havlu", "Ön kol karnının önünde"],
+    ["Dirseği oynatmadan ön kolu dışarı aç", "Kürek kemiği hafif geride", "Yavaşça geri getir; 12–15 tekrar"],
+    [["Dirseğin gövdeden ayrılması", "Havluyu sıkıştır, dirsek yerinde."], ["Bileği kırarak hareket ettirmek", "Bilek düz, ön kolla birlikte dönsün."], ["Gövdeyi döndürmek", "Göğsün önü göstersin."]],
+    "Kolaylaştır: yan yatarak ağırlıksız. Zorlaştır: 90/90 pozisyonda, yavaş tempo."],
+  ["Üst ekstremite", "Omuz", "Yatay adduksiyon", "Horizontal", "Dumbbell fly (bench'te)", "Pec deck, cable crossover; push-up ve bench press (yatay add. + dirsek ext.)",
+    "Pectoralis major", "Deltoid (ön), coracobrachialis", "Yandan veya önden",
+    "Bu dumbbell fly. Omuz ekleminde horizontal düzlemde yatay adduksiyon yaptırır: yana açık kolları göğsün önünde birleştiririz, birine sarılır gibi. Ana kas büyük göğüs kası pectoralis major.",
+    ["Bench'e sırt üstü yat, ayaklar yerde, kürek kemikleri geride ve bench'e basık", "Dumbbell'lar göğsün üstünde, avuçlar birbirine bakıyor", "Dirsekler hafif bükük ve bu açı sabit kalacak"],
+    ["Kolları yana, göğüs hizasına kadar yay çizerek aç", "Göğüste gerilmeyi hissedince aynı yaydan yukarı getir", "Yukarıda göğsünü sık; kaldırırken nefes ver"],
+    [["Kolları omuz hizasının çok altına indirmek", "Dirsekler göğüs hizasında dursun, omzunu koru."], ["Dirsekleri büküp press'e çevirmek", "Dirsek açısı sabit, kucaklar gibi aç-kapa."], ["Kürek kemiklerinin bench'ten kalkması", "Kürek kemiklerini arka cebine koy, sabit tut."]],
+    "Kolaylaştır: hafif dumbbell, kısa açıklık veya pec deck makinesi. Zorlaştır: yavaş eksantrik."],
+  ["Üst ekstremite", "Omuz", "Yatay abduksiyon", "Horizontal", "Reverse fly (öne eğilerek dumbbell veya makine)", "Band pull-apart, reverse pec deck",
+    "Deltoid (arka)", "Rhomboidler, trapezius (orta), infraspinatus, teres minor", "Yandan",
+    "Bu reverse fly. Omuz ekleminde horizontal düzlemde yatay abduksiyon yaptırır: önde duran kolları yana açarız. Ana kas omzun arka kısmı arka deltoid; kürek kemiklerini birbirine yaklaştıran rhomboidler ve orta trapez yardım eder. Kambur postüre karşı çok iyi.",
+    ["Dizler hafif bükük, kalçadan öne eğil, sırt düz", "Dumbbell'lar omuzların altında sarkıyor, avuçlar birbirine bakıyor", "Boyun nötr, bakış yere"],
+    ["Dirsekler hafif bükük, kolları yana omuz hizasına kadar aç", "Sonda kürek kemiklerini sık", "Kontrollü indir; açarken nefes ver"],
+    [["Sırtın yuvarlanması", "Göğsün yere doğru açık, sırt düz."], ["Gövdeyi kaldırarak sallanmak", "Gövden sabit, sadece kollar."], ["Omuzları kulaklara kaldırmak", "Omuzlar aşağıda."]],
+    "Kolaylaştır: band pull-apart ayakta. Zorlaştır: tepe noktada 2 sn bekleme."],
+  ["Üst ekstremite", "Kürek kemiği (skapula)", "Elevasyon", "Frontal", "Dumbbell shrug", "Barbell shrug, trap bar shrug",
+    "Trapezius (üst lifler)", "Levator scapulae", "Önden",
+    "Bu shrug, omuz silkme. Kürek kemiğinde frontal düzlemde elevasyon yaptırır: omuzları kulaklara doğru kaldırırız. Ana kas trapeziusun üst lifleri.",
+    ["Ayaklar kalça genişliğinde, dumbbell'lar yanlarda", "Kollar düz ve gevşek", "Göğüs dik, baş nötr"],
+    ["Omuzlarını kulaklarına doğru dik yukarı kaldır", "Tepede 1 sn sık", "Yavaşça aşağı indir; kaldırırken nefes ver"],
+    [["Omuzları döndürmek (çevirmek)", "Sadece yukarı-aşağı, asansör gibi."], ["Dirsekleri bükerek çekmek", "Kolların halat gibi gevşek ve düz."], ["Başı öne uzatmak", "Çenen hafif içeride, baş dik."]],
+    "Kolaylaştır: ağırlıksız. Zorlaştır: tepe noktada 2–3 sn bekleme."],
+  ["Üst ekstremite", "Kürek kemiği (skapula)", "Depresyon", "Frontal", "Skapular pulldown (lat pulldown makinesinde kollar düz)", "Skapular dips (paralel barda kollar düz), band ile",
+    "Trapezius (alt lifler)", "Latissimus dorsi, pectoralis minor", "Önden veya arkadan",
+    "Bu skapular pulldown. Kürek kemiğinde frontal düzlemde depresyon yaptırır: omuzları kulaklardan uzaklaştırıp aşağı bastırırız. Ana kas trapeziusun alt lifleri. Dirsek hiç bükülmez.",
+    ["Lat pulldown makinesine otur, barı omuz genişliğinden geniş tut", "Kollar tamamen düz, omuzlar kulaklara doğru kalkmış (başlangıç)"],
+    ["Kolları bükmeden sadece omuzları aşağı bastır", "Kürek kemiklerini arka cebine sok", "Yavaşça yukarı bırak; aşağı bastırırken nefes ver"],
+    [["Dirsekleri bükmek", "Kolların düz, hareket sadece omuzdan."], ["Gövdeyle geriye yaslanmak", "Gövden dik ve sabit."]],
+    "Kolaylaştır: hafif ağırlık, kısa açıklık. Zorlaştır: aşağıda 2 sn bekleme."],
+  ["Üst ekstremite", "Kürek kemiği (skapula)", "Retraksiyon", "Horizontal", "Seated cable row (oturarak kürek çekiş)", "Band pull-apart, face pull, one-arm dumbbell row",
+    "Rhomboidler, trapezius (orta lifler)", "Latissimus dorsi, deltoid (arka), biceps brachii", "Yandan",
+    "Bu seated row. Kürek kemiklerini birbirine yaklaştırır, yani retraksiyon yaptırır (horizontal düzlem); aynı anda omuz ekstansiyonu ve dirsek fleksiyonu da olur. Ana kaslar rhomboidler ve orta trapez, yardımcı latissimus dorsi. Kambur duruşa karşı en iyi hareketlerden biri.",
+    ["Makineye otur, ayaklar platformda, dizler hafif bükük", "Kolu tut, sırt dik, göğüs yukarı", "Kollar önde uzanmış, kürek kemikleri ayrık"],
+    ["Önce kürek kemiklerini birbirine yaklaştır, sonra kolu karnına çek", "Dirsekler gövdeye yakın, geriye", "Sonda 1 sn sık, kontrollü bırak; çekerken nefes ver"],
+    [["Gövdeyle geriye sallanmak", "Gövden dik ve sabit, sadece kollar ve kürekler."], ["Omuzların öne yuvarlanması ve kulaklara kalkması", "Göğüs yukarı, omuzlar aşağı ve geride."], ["Sırtın yuvarlanması", "Kalçadan dik otur, göğsünü öne ver."]],
+    "Kolaylaştır: hafif ağırlık veya band pull-apart. Zorlaştır: tek kol, 2 sn bekleme."],
+  ["Üst ekstremite", "Kürek kemiği (skapula)", "Protraksiyon", "Horizontal", "Push-up plus (şınavın sonunda kürekleri ayırma)", "Serratus punch (band veya kablo ile yumruk uzatma), duvarda push-up plus",
+    "Serratus anterior", "Pectoralis minor", "Yandan",
+    "Bu push-up plus. Kürek kemiğinde horizontal düzlemde protraksiyon yaptırır: kürek kemiklerini öne, göğüs kafesinin etrafına doğru taşırız. Ana kas serratus anterior, yani boksör kası. Kürek kemiğini göğüs kafesine yapışık tutar.",
+    ["Şınav pozisyonu: eller omuz altında, vücut düz bir tahta", "Kolay versiyon: duvarda veya dizler yerde"],
+    ["Kollar düz kalsın, göğsünü yere doğru hafifçe bırak (kürekler yaklaşır)", "Sonra yeri iterek sırtını tavana doğru yuvarla (kürekler ayrılır)", "İterken nefes ver"],
+    [["Dirsekleri bükmek", "Kolların düz, hareket sadece kürek kemiklerinden."], ["Belin çökmesi", "Karnını sık, vücudun tahta gibi."], ["Başı düşürmek", "Boynun gövdenle aynı çizgide."]],
+    "Kolaylaştır: duvarda veya dizler yerde. Zorlaştır: tam şınav + plus, tek kol serratus punch."],
+  ["Üst ekstremite", "Dirsek", "Fleksiyon", "Sagital", "Dumbbell biceps curl", "Barbell curl, hammer curl (brachioradialis), kablo curl",
+    "Biceps brachii", "Brachialis, brachioradialis", "Yandan",
+    "Bu biceps curl. Dirsek ekleminde sagital düzlemde fleksiyon yaptırır: dirseği bükerek ağırlığı omuza doğru getiririz. Ana kas kolun önündeki iki başlı kas biceps brachii; altındaki brachialis ve ön koldaki brachioradialis yardım eder. Kaldırırken konsantrik, indirirken eksantrik çalışır.",
+    ["Ayaklar kalça genişliğinde, dizler hafif bükük", "Dumbbell'lar yanlarda, avuçlar öne bakıyor", "Dirsekler gövdenin yanında, omuzlar aşağıda"],
+    ["Dirseği yerinde tutarak ağırlığı omuza doğru kaldır", "Tepede biceps'i sık", "2–3 saniyede kontrollü indir, kol tamamen uzasın; kaldırırken nefes ver"],
+    [["Gövdeyle sallanarak kaldırmak", "Gövden sabit, ağırlığı azaltalım."], ["Dirseklerin öne kayması", "Dirsekler gövdenin yanına yapışık."], ["Aşağıda kolu tam uzatmamak", "Aşağıda kolunu tamamen aç."], ["Bileği bükmek", "Bileğin düz, ön kolla tek parça."]],
+    "Kolaylaştır: tek kol, oturarak, hafif ağırlık. Zorlaştır: yavaş eksantrik (3–4 sn), tepede bekleme."],
+  ["Üst ekstremite", "Dirsek", "Ekstansiyon", "Sagital", "Triceps pushdown (kablo)", "Overhead triceps extension, bench dips, kickback",
+    "Triceps brachii", "Anconeus", "Yandan",
+    "Bu triceps pushdown. Dirsek ekleminde sagital düzlemde ekstansiyon yaptırır: bükülü dirseği düzleştiririz. Ana kas kolun arkasındaki üç başlı kas triceps brachii.",
+    ["Kablonun karşısında dur, ayaklar kalça genişliğinde", "Barı avuçlar aşağı bakacak şekilde tut", "Dirsekler gövdenin yanında, 90° bükük, gövde çok hafif öne"],
+    ["Dirsekleri oynatmadan barı uyluklara kadar it", "Altta kolunu tamamen düzleştir, triceps'i sık", "Kontrollü 90°'ye geri gel; iterken nefes ver"],
+    [["Dirseklerin öne-arkaya oynaması", "Dirsekler gövdene vidalı gibi sabit."], ["Gövdeyle bastırmak", "Gövden sabit, sadece ön kol hareket etsin."], ["Altta kolu tam açmamak", "Altta kolunu tamamen düzleştir."]],
+    "Kolaylaştır: band ile. Zorlaştır: tek kol, yavaş eksantrik."],
+  ["Üst ekstremite", "Ön kol (radioulnar eklem)", "Supinasyon / pronasyon", "Horizontal", "Dumbbell ile ön kol çevirme (supinasyon-pronasyon)", "Çekiç veya tek ucu ağır dumbbell ile çevirme",
+    "Supinasyon: supinator, biceps brachii · Pronasyon: pronator teres, pronator quadratus", "–", "Önden",
+    "Bu ön kol çevirme hareketi. Radioulnar eklemde horizontal düzlemde olur. Avucu yukarı çevirmek supinasyon (çorba kasesi tutar gibi), aşağı çevirmek pronasyon. Supinasyonu supinator ve biceps, pronasyonu pronator teres yapar.",
+    ["Otur, ön kolunu uyluğuna koy, el dizin ötesinde boşta", "Hafif dumbbell'ı ortasından değil bir ucundan tut, dirsek 90°"],
+    ["Avucunu yavaşça tavana çevir (supinasyon)", "Sonra yere çevir (pronasyon)", "Ön kol uylukta sabit, sadece döner"],
+    [["Omuzdan döndürmek", "Dirseğin ve ön kolun uylukta sabit, sadece el döner."], ["Hızlı ve kontrolsüz çevirmek", "Yavaş, 2 saniyede çevir."]],
+    "Kolaylaştır: ağırlıksız. Zorlaştır: dumbbell'ı daha uçtan tut (kaldıraç uzar)."],
+  ["Üst ekstremite", "El bileği", "Fleksiyon / ekstansiyon", "Sagital", "Wrist curl ve reverse wrist curl", "Bileğe band ile, farmer walk (kavrama)",
+    "Fleksiyon: ön kol fleksörleri · Ekstansiyon: ön kol ekstansörleri", "–", "Yandan",
+    "Bu wrist curl. El bileğinde sagital düzlemde olur. Avuç yukarıyken bileği bükmek fleksiyon, ön kolun iç yüzündeki fleksörleri çalıştırır. Avuç aşağıyken bileği kaldırmak ekstansiyon (reverse wrist curl), dış yüzdeki ekstansörleri çalıştırır.",
+    ["Otur, ön kolları uyluklara koy, bilekler dizin ötesinde", "Hafif dumbbell; avuç yukarı (fleksiyon) veya aşağı (ekstansiyon)"],
+    ["Sadece bileği bükerek dumbbell'ı yukarı kaldır", "Yavaş indir", "15–20 tekrar"],
+    [["Ön kolu uyluktan kaldırmak", "Ön kolun uylukta sabit, sadece bilek hareket etsin."], ["Ağır yükle yarım hareket", "Hafif yük, tam açıklık."]],
+    "Kolaylaştır: ağırlıksız. Zorlaştır: tempo yavaşlat."],
+  ["Gövde", "Omurga", "Fleksiyon", "Sagital", "Crunch (mekik)", "Reverse crunch, kablo crunch",
+    "Rectus abdominis", "External ve internal oblique", "Yandan",
+    "Bu crunch. Omurgada sagital düzlemde fleksiyon yaptırır: göğsü leğene doğru yaklaştırıp gövdeyi büküyoruz. Ana kas düz karın kası rectus abdominis.",
+    ["Sırt üstü yat, dizler bükük, ayaklar yerde", "Eller kulakların yanında veya göğüste çapraz", "Belin yere yakın, nötr"],
+    ["Karnını sık, göğsünü leğenine doğru yuvarla; kürek kemikleri yerden kalksın", "Tepede 1 sn sık", "Yavaşça geri yat; kalkarken nefes ver"],
+    [["Elleriyle başı çekmek", "Ellerin sadece destek; çenenle göğsün arasında bir yumruk boşluk olsun."], ["Tamamen oturuşa kalkmak (kalça fleksörleri devreye giriyor)", "Sadece kürek kemiklerini kaldır, kısa hareket."], ["Hızlı ve momentumla yapmak", "Yavaş, karın sıkılı."]],
+    "Kolaylaştır: kollar uzanmış öne. Zorlaştır: kollar baş üstünde, ağırlık plakası göğüste."],
+  ["Gövde", "Omurga", "Ekstansiyon", "Sagital", "Back extension (hiperekstansiyon sehpası)", "Yüzüstü superman, bird dog (stabilizasyon)",
+    "Erector spinae", "Gluteus maximus, hamstring, multifidus", "Yandan",
+    "Bu back extension. Omurgada sagital düzlemde ekstansiyon yaptırır: öne bükülmüş gövdeyi düz hale getiririz. Ana kas omurganın iki yanındaki erector spinae; kalçadan gluteus maximus ve hamstring yardım eder.",
+    ["Sehpayı kalça kemiği pedin hemen üstünde kalacak şekilde ayarla", "Ayaklar sabit, kollar göğüste çapraz", "Başlangıçta gövde öne sarkık, sırt düz"],
+    ["Gövdeyi bacaklarınla düz bir çizgiye gelene kadar kaldır", "Kalçanı sık", "Kontrollü in; kalkarken nefes ver"],
+    [["Yukarıda aşırı geriye bükülmek (bel ağrısı riski)", "Bacaklarınla düz çizgide dur, fazlası yok."], ["Hızlı ve sallanarak yapmak", "Yavaş, kontrollü."], ["Boynu geriye atmak", "Bakışın yere, boynun gövdenle aynı çizgide."]],
+    "Kolaylaştır: yerde superman, kısa açıklık. Zorlaştır: göğüste plaka."],
+  ["Gövde", "Omurga", "Lateral fleksiyon", "Frontal", "Dumbbell side bend (yana eğilme)", "Kablo side bend, side plank (izometrik)",
+    "Quadratus lumborum, external ve internal oblique", "Erector spinae, rectus abdominis", "Önden",
+    "Bu side bend. Omurgada frontal düzlemde lateral fleksiyon yaptırır: gövdeyi yana eğeriz. Ana kaslar karşı taraftaki oblikler ve quadratus lumborum.",
+    ["Ayaklar kalça genişliğinde, tek elde dumbbell", "Diğer el başın arkasında veya belde", "Göğüs dik"],
+    ["Dumbbell tarafına doğru yavaşça yana eğil", "Karşı taraftaki kasları kullanarak dik konuma geri gel", "Gelirken nefes ver; iki tarafı da çalış"],
+    [["Öne veya arkaya eğilmek", "Sadece yana, iki duvar arasında sıkışmış gibi."], ["Kalçayı yana kaydırmak", "Kalçan sabit, hareket bel ve gövdeden."], ["Çok ağır yük", "Hafif yük, kontrollü hareket."]],
+    "Kolaylaştır: ağırlıksız. Zorlaştır: side plank'ta kalça indir-kaldır."],
+  ["Gövde", "Omurga", "Rotasyon", "Horizontal", "Kablo wood chop (odun kesme)", "Russian twist, band ile rotasyon, Pallof press (anti-rotasyon)",
+    "External oblique (karşı taraf), internal oblique (aynı taraf)", "Rectus abdominis, erector spinae", "Önden",
+    "Bu wood chop. Omurgada horizontal düzlemde rotasyon yaptırır: gövdeyi kendi ekseni etrafında döndürürüz. Ana kaslar oblikler: dış oblik karşı tarafa, iç oblik aynı tarafa döndürür.",
+    ["Kablonun yanında dur, ayaklar omuz genişliğinde, dizler hafif bükük", "Kolu iki elle tut, kollar uzanmış", "Karın sıkı"],
+    ["Kolu çapraz şekilde, gövdeni döndürerek karşı tarafa çek", "Ayaklar yere basıyor, arka ayak hafif dönebilir", "Kontrollü geri dön; çekerken nefes ver"],
+    [["Sadece kollarla çekmek", "Gücü gövdeden ver, göğsün kolu takip etsin."], ["Belden aşırı bükülmek", "Omurga uzun, dönme göğüs kafesinden."], ["Hızlı ve kontrolsüz dönmek", "Yavaş ve kontrollü."]],
+    "Kolaylaştır: band ile, kısa açıklık. Zorlaştır: tek diz yerde (yarım diz çökme) pozisyonu."],
+  ["Alt ekstremite", "Kalça", "Fleksiyon", "Sagital", "Sırt üstü leg raise (bacak kaldırma)", "Ayakta knee raise, asılı diz çekiş, yürüyüşte high knees",
+    "Iliopsoas", "Rectus femoris, TFL, sartorius", "Yandan",
+    "Bu leg raise. Kalça ekleminde sagital düzlemde fleksiyon yaptırır: bacağı öne-yukarı kaldırırız, dizi göğse yaklaştırır gibi. Ana kas derindeki kalça fleksörü iliopsoas, yardımcı rectus femoris.",
+    ["Sırt üstü yat, eller kalçanın yanında veya altında", "Belini yere bastır, karın sıkı", "Bacaklar düz veya dizler hafif bükük"],
+    ["Bacakları belini yerden kaldırmadan yukarı kaldır", "Yavaşça indir, yere değmeden dur", "Kaldırırken nefes ver"],
+    [["Belin yerden kalkıp çukurlaşması", "Belini yere yapıştır; gerekirse dizleri bük."], ["Bacakları hızla düşürmek", "3 saniyede indir, frenle."], ["Başı ve omuzları kaldırmak", "Başın yerde, boyun rahat."]],
+    "Kolaylaştır: dizler bükük, tek bacak. Zorlaştır: düz bacak, asılı leg raise."],
+  ["Alt ekstremite", "Kalça", "Ekstansiyon", "Sagital", "Glute bridge (kalça köprüsü)", "Hip thrust, donkey kick, Romanian deadlift (RDL)",
+    "Gluteus maximus", "Hamstring, adductor magnus", "Yandan",
+    "Bu glute bridge. Kalça ekleminde sagital düzlemde ekstansiyon yaptırır: bükülü kalçayı açarak kalçayı yukarı kaldırırız. Ana kas vücudun en büyük kası gluteus maximus; arka uyluk hamstring yardım eder.",
+    ["Sırt üstü yat, dizler bükük, ayaklar kalça genişliğinde yerde", "Topuklar kalçaya bir karış mesafede", "Kollar yanda, karın sıkı"],
+    ["Topuklarından iterek kalçanı yukarı kaldır; omuz-kalça-diz düz çizgi", "Tepede kalçanı 1–2 sn sık", "Yavaş indir; kaldırırken nefes ver"],
+    [["Belden aşırı kavis yapmak (hareket belden geliyor)", "Kaburgalar aşağı, kalçanı sıkarak kalk; düz çizgide dur."], ["Dizlerin içe kapanması", "Dizlerini dışa it."], ["Ayak uçlarından itmek", "Topuklarından it."]],
+    "Kolaylaştır: kısa açıklık. Zorlaştır: tek bacak, hip thrust (sırt bench'te, barla)."],
+  ["Alt ekstremite", "Kalça", "Abduksiyon", "Frontal", "Yan yatarak bacak kaldırma (side-lying leg raise)", "Hip abduction makinesi, band ile yan adım (band walk), clamshell",
+    "Gluteus medius", "Gluteus minimus, TFL", "Önden veya arkadan",
+    "Bu side-lying leg raise. Kalça ekleminde frontal düzlemde abduksiyon yaptırır: bacağı yana, orta hattan uzaklaştırırız. Ana kas kalçanın yanındaki gluteus medius. Tek ayakta durunca leğeni dengeler; zayıfsa squat'ta diz içe kaçar.",
+    ["Yan yat, alttaki bacak hafif bükük, üstteki düz", "Kalçalar üst üste, gövde ve bacak düz çizgi", "Üst ayak ucu öne veya hafif aşağı bakıyor"],
+    ["Üst bacağı düz şekilde yukarı, yaklaşık 30–45° kaldır", "Topuk hafif önde yol göstersin", "Yavaş indir; kaldırırken nefes ver"],
+    [["Bacağı öne getirmek (kalça fleksörleri devreye giriyor)", "Bacağın gövdenle aynı çizgide, hafif geride."], ["Kalçanın arkaya yuvarlanması", "Üst kalçan öne baksın, devrilme."], ["Ayak ucunu tavana çevirmek", "Ayak ucun öne baksın."]],
+    "Kolaylaştır: kısa açıklık. Zorlaştır: diz üstüne band, tepede 2 sn bekleme."],
+  ["Alt ekstremite", "Kalça", "Adduksiyon", "Frontal", "Hip adduction makinesi", "Yan yatarak alt bacağı kaldırma, Copenhagen plank, sumo squat",
+    "Adduktorlar (adductor magnus, longus, brevis, gracilis)", "Pectineus", "Önden",
+    "Bu hip adduction makinesi. Kalça ekleminde frontal düzlemde adduksiyon yaptırır: yana açık bacakları orta hatta doğru kapatırız. Ana kaslar uyluğun iç yanındaki adduktorlar.",
+    ["Makineye otur, pedler dizlerin iç tarafında", "Açıklığı rahat gerilme hissedeceğin yere ayarla", "Sırt dik, tutamaçları tut"],
+    ["Bacaklarını birbirine doğru kapat", "Ortada 1 sn sık", "Yavaşça aç; kapatırken nefes ver"],
+    [["Ağırlığı hızla bırakmak", "Açarken frenle, 2–3 saniye."], ["Gövdeyle öne eğilmek", "Sırtın dik, gövde sabit."], ["Aşırı açıklıktan başlamak", "Rahat gerilme noktasından başla."]],
+    "Kolaylaştır: hafif ağırlık, kısa açıklık. Zorlaştır: yavaş eksantrik."],
+  ["Alt ekstremite", "Kalça", "Dış rotasyon", "Horizontal", "Clamshell (istiridye)", "Ayakta band ile dış rotasyon",
+    "Derin dış rotatörler (piriformis vb.), gluteus maximus", "Gluteus medius (arka lifler), sartorius", "Önden",
+    "Bu clamshell. Kalça ekleminde horizontal düzlemde dış rotasyon yaptırır: ayaklar birlikteyken üstteki dizi istiridye kabuğu gibi açarız. Ana kaslar derin dış rotatörler ve gluteus maximus, yardımcı gluteus medius.",
+    ["Yan yat, kalça ve dizler yaklaşık 45° bükük", "Ayaklar üst üste, baş kolun üstünde", "Kalçalar üst üste, karın sıkı"],
+    ["Ayaklar ayrılmadan üst dizi tavana doğru aç", "Kalçanı geriye devirme", "Yavaş kapat; açarken nefes ver"],
+    [["Kalçanın arkaya devrilmesi", "Üst kalçan öne doğru, sadece diz açılsın."], ["Ayakların ayrılması", "Ayakların birbirine yapışık."], ["Hızlı yapmak", "Yavaş, tepede 1 sn bekle."]],
+    "Kolaylaştır: kısa açıklık. Zorlaştır: diz üstüne mini band."],
+  ["Alt ekstremite", "Kalça", "İç rotasyon", "Horizontal", "Oturarak band ile kalça iç rotasyonu", "Yan yatarak ters clamshell (ayağı kaldırma)",
+    "Gluteus medius ve minimus (ön lifler), TFL", "Adductor magnus", "Önden",
+    "Bu oturarak kalça iç rotasyonu. Kalça ekleminde horizontal düzlemde iç rotasyon yaptırır: diz sabitken ayağı dışarı açarak uyluğu içe çeviririz. Ana kaslar gluteus medius ve minimusun ön lifleri ve TFL.",
+    ["Sandalyeye dik otur, dizler 90°", "Bandı ayak bileğine tak, diğer ucu dış tarafta sabit", "Dizler kalça genişliğinde ve yerinde"],
+    ["Dizini oynatmadan ayağını dışarı doğru götür", "Yavaşça geri getir", "12–15 tekrar"],
+    [["Dizin yerinden kayması", "Dizin yerinde, sadece alt bacak açılır."], ["Gövdeyi yana eğmek", "Gövden dik ve sabit."]],
+    "Kolaylaştır: bandsız. Zorlaştır: daha güçlü band."],
+  ["Alt ekstremite", "Diz", "Fleksiyon", "Sagital", "Leg curl (yatarak veya oturarak makine)", "Band ile leg curl, top üstünde hamstring curl",
+    "Hamstring (biceps femoris, semitendinosus, semimembranosus)", "Gastrocnemius, sartorius, gracilis", "Yandan",
+    "Bu leg curl. Diz ekleminde sagital düzlemde fleksiyon yaptırır: topuğu kalçaya doğru getiririz. Ana kaslar arka uyluk hamstring kasları. Dikkat: diz fleksiyonunda topuk geriye gider ama bu yine fleksiyondur.",
+    ["Makineye yüzüstü yat, diz kapağı pedin hemen dışında, eklem makinenin dönme ekseniyle hizalı", "Ped aşil tendonunun hemen üstünde", "Kalça pede basık, tutamaçları tut"],
+    ["Topukları kalçaya doğru çek", "Tepede 1 sn sık", "2–3 sn'de kontrollü indir; çekerken nefes ver"],
+    [["Kalçanın pedden kalkması", "Kalçanı pede bastır, karnını sık."], ["Ağırlığı hızla bırakmak", "İnerken frenle."], ["Dizi makine ekseniyle hizalamamak", "Diz eklemi makinenin dönme noktasıyla aynı hizada."]],
+    "Kolaylaştır: tek bacak hafif yük. Zorlaştır: yavaş eksantrik, tek bacak."],
+  ["Alt ekstremite", "Diz", "Ekstansiyon", "Sagital", "Leg extension (makine)", "Band ile diz ekstansiyonu; squat ve lunge (kalça + diz ekstansiyonu)",
+    "Quadriceps (rectus femoris, vastus lateralis, vastus medialis, vastus intermedius)", "–", "Yandan",
+    "Bu leg extension. Diz ekleminde sagital düzlemde ekstansiyon yaptırır: bükülü dizi düzleştiririz, topa tekme atar gibi. Ana kas uyluğun önündeki dört başlı quadriceps.",
+    ["Makineye otur, sırt destekte, diz eklemi makinenin dönme ekseniyle hizalı", "Ped ayak bileğinin hemen üstünde", "Tutamaçları tut, kalça koltukta"],
+    ["Dizlerini düzleştirerek pedi yukarı kaldır", "Tepede uyluğunu 1 sn sık", "Kontrollü indir; kaldırırken nefes ver"],
+    [["Kalçanın koltuktan kalkması", "Tutamaçları çek, kalçan koltukta."], ["Ağırlığı hızla düşürmek", "İnerken 2–3 sn frenle."], ["Tepede dizi sertçe kilitlemek", "Yumuşak düzleş, kilitleme."]],
+    "Kolaylaştır: tek bacak, hafif yük, kısa açıklık. Zorlaştır: tepede 2 sn bekleme."],
+  ["Alt ekstremite", "Ayak bileği", "Plantar fleksiyon", "Sagital", "Ayakta calf raise (parmak ucuna kalkma)", "Oturarak calf raise (soleus), leg press'te calf raise",
+    "Gastrocnemius, soleus", "Peroneuslar, tibialis posterior", "Yandan",
+    "Bu calf raise. Ayak bileğinde sagital düzlemde plantar fleksiyon yaptırır: parmak ucuna kalkarız. Ana kaslar baldırdaki gastrocnemius ve soleus. Diz bükükken (oturarak) iş daha çok soleus'a kalır.",
+    ["Basamağın kenarına ayak ucuyla bas, topuklar boşta", "Duvara veya tutamağa hafif tutun", "Dizler düz ama kilitli değil"],
+    ["Parmak uçlarına olabildiğince yüksel", "Tepede 1 sn bekle", "Topukları basamak hizasının altına kontrollü indir; kalkarken nefes ver"],
+    [["Zıplayarak, hızlı yapmak", "Yavaş: 1 sn çık, 1 sn bekle, 2 sn in."], ["Ayak bileğinin dışa kayması", "Ağırlık başparmak ve ikinci parmak üzerinde."], ["Yarım açıklık", "Tam yüksel, tam in."]],
+    "Kolaylaştır: düz zeminde, iki ayak. Zorlaştır: tek ayak, elde dumbbell."],
+  ["Alt ekstremite", "Ayak bileği", "Dorsi fleksiyon", "Sagital", "Toe raise (ayak ucunu kaldırma) / topuk yürüyüşü", "Band ile dorsi fleksiyon (otururken)",
+    "Tibialis anterior", "Ayak parmak ekstansörleri", "Yandan",
+    "Bu toe raise. Ayak bileğinde sagital düzlemde dorsi fleksiyon yaptırır: topuklar yerdeyken ayak uçlarını yukarı kaldırırız. Ana kas kaval kemiğinin önündeki tibialis anterior.",
+    ["Sırtını duvara yasla, topuklar duvardan bir ayak mesafede", "Dizler düz, ağırlık topuklarda"],
+    ["Ayak uçlarını olabildiğince yukarı kaldır", "Yavaşça indir, yere değmeden tekrar kaldır", "15–20 tekrar"],
+    [["Kalçayı geriye itmek", "Sırtın ve kalçan duvarda."], ["Hızlı ve yarım yapmak", "Tam yukarı, yavaş in."]],
+    "Kolaylaştır: oturarak. Zorlaştır: topuk yürüyüşü, band."],
+  ["Alt ekstremite", "Ayak bileği", "İnversiyon / eversiyon", "Frontal", "Band ile inversiyon ve eversiyon (otururken)", "Denge tahtasında çalışma",
+    "İnversiyon: tibialis anterior ve posterior · Eversiyon: peroneuslar", "–", "Önden",
+    "Bu band ile ayak bileği hareketi. Ayak bileğinde frontal düzlemde olur. Tabanı içe çevirmek inversiyon (tibialis anterior ve posterior), dışa çevirmek eversiyon (peroneuslar). Ayak bileği burkulmasından korunmak için yapılır.",
+    ["Yere otur, bacak uzanmış, topuk yerde", "Bandı ayağın ön kısmına tak, diğer ucu yanda sabit"],
+    ["Bacağı döndürmeden sadece tabanı içe (inversiyon) veya dışa (eversiyon) çevir", "Yavaş geri dön", "15 tekrar, iki yön"],
+    [["Bacağı kalçadan döndürmek", "Diz kapağın tavana baksın, sadece ayak döner."], ["Hızlı yapmak", "Yavaş ve kontrollü."]],
+    "Kolaylaştır: bandsız. Zorlaştır: güçlü band, denge tahtası."],
+  ["Çok eklemli (bonus)", "Kalça + diz + ayak bileği", "Ekstansiyon (kalkış)", "Sagital", "Goblet squat", "Bodyweight squat, back squat, leg press",
+    "Quadriceps, gluteus maximus", "Hamstring, adduktorlar, soleus; stabilizatör: erector spinae, core, gluteus medius", "Yandan (diz takibi için önden de)",
+    "Bu goblet squat. Kalça ve dizde sagital düzlemde fleksiyonla inip ekstansiyonla kalkarız; ayak bileği iniş sırasında dorsi fleksiyona gider. Ana kaslar quadriceps ve gluteus maximus. İnişte eksantrik, kalkışta konsantrik çalışırlar. Merdiven çıkmak, sandalyeden kalkmak gibi günlük hareketleri kolaylaştırır.",
+    ["Ayaklar omuz genişliğinde, ayak uçları hafif dışa", "Dumbbell'ı göğsünün önünde dikey tut, dirsekler aşağı", "Göğüs dik, karın sıkı"],
+    ["Kalçanı geriye gönder ve sandalyeye oturur gibi in", "Uyluklar yere paralele kadar ya da tekniğin bozulmadığı yere kadar", "Topuklarından iterek kalk; kalkarken nefes ver"],
+    [["Dizlerin içe çökmesi (valgus)", "Dizlerini dışa it, ayak uçlarını takip etsin."], ["Topukların kalkması", "Ağırlık topuklarda, ayak tabanının tamamı yerde."], ["Sırtın yuvarlanması, göğsün düşmesi", "Göğüs yukarı, dumbbell'ı göğsüne yapıştır."], ["Kalçanın önce kalkması", "Göğüs ve kalça aynı anda kalksın."]],
+    "Kolaylaştır: sandalyeye otur-kalk (box squat). Zorlaştır: daha ağır yük, yavaş eksantrik."],
+  ["Çok eklemli (bonus)", "Kalça", "Abduksiyon / adduksiyon", "Frontal", "Lateral (side) lunge", "Band walk, sumo squat",
+    "Adduktorlar, gluteus medius; çalışan bacakta quadriceps ve gluteus maximus", "Hamstring", "Önden",
+    "Bu side lunge. Yana adım atarken kalça frontal düzlemde abduksiyona gider; geri dönerken adduktorlar bacağı içeri çeker. Çalışan bacakta diz ve kalça bükülür. Frontal düzlemi göstermek için en iyi çok eklemli hareket.",
+    ["Ayaklar bitişik, ayakta dik dur", "Eller göğüs önünde"],
+    ["Bir bacakla geniş bir adım yana at", "Adım attığın bacağın kalçasını geri gönderip dizini bük, diğer bacak düz", "Topuktan iterek başlangıca dön; dönerken nefes ver"],
+    [["Dizin ayak ucunu geçip içe kaçması", "Dizin ayak ucun yönünde, ikinci parmağın üstünde."], ["Gövdenin fazla öne düşmesi", "Göğüs dik, kalça geride."], ["Topuğun kalkması", "Tüm taban yerde."]],
+    "Kolaylaştır: kısa adım, sığ iniş. Zorlaştır: elde dumbbell (goblet)."]
+];
+
+const UYB = ["Üst ekstremite", "Gövde", "Alt ekstremite", "Çok eklemli (bonus)"];
+/* hocanın sorabileceği farklı cümle kalıpları */
+function uySoru(x) {
+  const b = x[0].startsWith("Çok") ? "Alt ekstremitede" : x[0] === "Gövde" ? "Gövdede" : x[0] + "de";
+  const ek = x[1].replace(/ \(.*\)$/, "");
+  const h = x[2].toLocaleLowerCase("tr");
+  const T = [
+    `${b} ${ek.toLocaleLowerCase("tr")} eklemine ${x[3].toLocaleLowerCase("tr")} düzlemde ${h} yaptıran bir hareket söyle ve üyeye yaptır.`,
+    `${ek}: ${x[3].toLocaleLowerCase("tr")} düzlemde ${h}. Bunu hangi egzersizle çalıştırırsın? Anlat, göster, uygulat.`,
+    `Üyene ${ek.toLocaleLowerCase("tr")} için ${h} hareketini öğret. Hangi düzlemde, hangi kas çalışıyor?`
+  ];
+  return T[Math.floor(Math.random() * T.length)];
+}
+function uyCard(x, open = false) {
+  return `<details class="card uyc" ${open ? "open" : ""}><summary><div class="row between" style="gap:8px"><div><span class="small muted">${esc(x[0])} · ${esc(x[1])}</span><div class="uyh"><b>${esc(x[2])}</b> ${plChip(x[3])}</div><div>→ <b>${esc(x[4])}</b></div></div><span class="pill acc">${esc(x[6].split(/[,·(]/)[0].trim())}</span></div></summary>
+    <div class="stack" style="margin-top:12px">
+      <dl class="andl"><dt>Eklem</dt><dd>${esc(x[1])}</dd><dt>Hareket</dt><dd>${esc(x[2])}</dd><dt>Düzlem</dt><dd>${plChip(x[3])}</dd><dt>Agonist</dt><dd><b>${esc(x[6])}</b></dd><dt>Yardımcı</dt><dd>${esc(x[7])}</dd><dt>Alternatif</dt><dd>${esc(x[5])}</dd></dl>
+      <div class="uystep"><span class="uyn">1</span><div><b>ANLAT</b> <span class="small muted">(işitsel: adı, eklem, düzlem, kas, neden)</span><p class="uyq">"${esc(x[9])}"</p></div></div>
+      <div class="uystep"><span class="uyn">2</span><div><b>GÖSTER</b> <span class="small muted">(görsel)</span><p>Üyeyi <b>${esc(x[8].toLocaleLowerCase("tr"))}</b> görebileceği yere al. Konuşmadan, gerçek tempoda 2–3 tekrar yap. "Şimdi bir izle" de, sonra göster.</p></div></div>
+      <div class="uystep"><span class="uyn">3</span><div><b>UYGULAT</b> <span class="small muted">(kinestetik: hafif yük, 5–8 tekrar)</span><p><b>Başlangıç pozisyonu:</b></p><ul>${x[10].map(c => `<li>${esc(c)}</li>`).join("")}</ul><p><b>Hareket:</b></p><ul>${x[11].map(c => `<li>${esc(c)}</li>`).join("")}</ul><p class="small">Sonra sor: "Nerede hissettin?" (Doğru cevap: ${esc(x[6].split(/[·(]/)[0].trim())}.)</p></div></div>
+      <div class="uystep"><span class="uyn">4</span><div><b>GERİ BİLDİRİM / DÜZELT</b> <span class="small muted">(tek seferde tek düzeltme, olumlu dil)</span>
+        <div class="tw"><table><thead><tr><th>Görürsen (hata)</th><th>De ki (düzeltme)</th></tr></thead><tbody>${x[12].map(h => `<tr><td>${esc(h[0])}</td><td><b>"${esc(h[1])}"</b></td></tr>`).join("")}</tbody></table></div>
+        <p class="small">Önce olumlu bir şey söyle, sonra tek düzeltme, sonra cesaretlendir: <i>"Güzel, gövden çok sabit. Bir sonrakinde ${esc(x[12][0][1].replace(/\.$/, "").toLocaleLowerCase("tr"))}. Harika gidiyorsun."</i></p></div></div>
+      <p class="small"><b>Modifikasyon:</b> ${esc(x[13])}</p>
+    </div></details>`;
+}
+
+ROUTES.uygulama = async (r, main) => {
+  const sub = r.split("-")[1] || "";
+  const tabs = segNav([["uygulama", "Sınav formatı"], ["uygulama-kart", "Hareket kartları"], ["uygulama-hoca", "Hoca soruyor (pratik)"]], r);
+  const head = (t, d) => `<div class="uhead"><span class="eyebrow">Uygulamalı sınav</span><h1>${t}</h1><p class="muted">${d}</p></div>${tabs}`;
+  if (sub === "kart") {
+    let b = "";
+    const pg = page(main, `<div class="stack">${head("Eklem eklem hareket kartları", `${UY.length} soru tipi. Her kartta egzersiz, kaslar ve Anlat → Göster → Uygulat → Düzelt metni. Karta dokun, açılsın.`)}
+      <div class="chipsel" id="ub"><button data-b="" aria-pressed="true">Hepsi</button>${UYB.map(x => `<button data-b="${esc(x)}" aria-pressed="false">${esc(x)}</button>`).join("")}</div>
+      <input type="search" id="uq" placeholder="Ara: ör. abduksiyon, frontal, lat, diz">
+      <div class="stack" id="ul"></div></div>`);
+    const draw = () => { const q = fold($("#uq").value.trim()); const l = UY.filter(x => (!b || x[0] === b) && (!q || fold(x.slice(0, 8).join(" ")).includes(q))); $("#ul").innerHTML = l.map(x => uyCard(x)).join("") || '<div class="empty">Bulunamadı.</div>'; };
+    $$("#ub button").forEach(x => x.onclick = () => { b = x.dataset.b; $$("#ub button").forEach(y => y.setAttribute("aria-pressed", y === x)); draw(); });
+    $("#uq").oninput = draw; draw(); return;
+  }
+  if (sub === "hoca") {
+    let bolge = "", cur = null, t0 = 0, tm = null;
+    page(main, `<div class="stack">${head("Hoca soruyor: pratik yap", "Rastgele bir soru gelir. Süreyi başlat, sesli olarak cevabını ver (mümkünse bir arkadaşın ya da aynanın karşısında), sonra cevabı aç ve karşılaştır.")}
+      <div class="chipsel" id="hb"><button data-b="" aria-pressed="true">Hepsi</button>${UYB.map(x => `<button data-b="${esc(x)}" aria-pressed="false">${esc(x)}</button>`).join("")}</div>
+      <div class="card stack uyhoca"><div class="row between"><span class="eyebrow">Hoca</span><span class="big num" id="ht">0:00</span></div><p class="uyask" id="hq"></p>
+        <div class="row"><button class="btn" id="ha">Cevabı göster</button><button class="btn ghost" id="hn">Yeni soru</button></div>
+        <p class="small muted">Cevabında 5 şey olmalı: <b>1)</b> egzersizin adı, <b>2)</b> eklem + hareket + düzlem + ana kas, <b>3)</b> gösterim, <b>4)</b> başlangıç pozisyonu ve 2–3 komut, <b>5)</b> en az bir hatayı yakalayıp düzeltme.</p></div>
+      <div id="hc"></div></div>`);
+    const tick = () => { const s = Math.floor((Date.now() - t0) / 1000); const el = $("#ht"); if (!el) { clearInterval(tm); return; } el.textContent = `${Math.floor(s / 60)}:${pad2(s % 60)}`; };
+    const next = () => { const l = UY.filter(x => !bolge || x[0] === bolge); let n; do { n = l[Math.floor(Math.random() * l.length)]; } while (l.length > 1 && n === cur); cur = n; $("#hq").textContent = uySoru(cur); $("#hc").innerHTML = ""; t0 = Date.now(); clearInterval(tm); tm = setInterval(tick, 1000); tick(); };
+    $("#ha").onclick = () => { clearInterval(tm); $("#hc").innerHTML = uyCard(cur, true); $("#hc").scrollIntoView({ behavior: "smooth", block: "start" }); };
+    $("#hn").onclick = next;
+    $$("#hb button").forEach(x => x.onclick = () => { bolge = x.dataset.b; $$("#hb button").forEach(y => y.setAttribute("aria-pressed", y === x)); next(); });
+    leaveHook = () => clearInterval(tm);
+    next(); return;
+  }
+  const ex = UY[0];
+  const rows = UYB.map(b => UY.filter(x => x[0] === b).map(x => `<tr><td class="small muted">${esc(b === "Çok eklemli (bonus)" ? "Bonus" : b)}</td><td><b>${esc(x[1].replace(/ \(.*\)$/, ""))}</b></td><td>${esc(x[2])}</td><td>${plChip(x[3])}</td><td>${esc(x[4])}</td><td class="small">${esc(x[6])}</td></tr>`).join("")).join("");
+  page(main, `<div class="stack">${head("Uygulamalı sınav: hareketi öğret", "Hoca bir eklem, düzlem ve hareket söyler; sen o hareketi yaptıran egzersizi bulur, üyeye anlatır, gösterir, uygulatır ve düzeltirsin.")}
+    <section class="card stack"><h2>Soru nasıl gelir, nasıl çözülür?</h2>
+      <div class="callout"><b>Örnek soru:</b> "Üst ekstremitede omuza sagital düzlemde fleksiyon yaptıran hareket nedir? Üyeye yaptır."</div>
+      <ol class="steps"><li><b>Soruyu parçala:</b> Eklem = omuz. Düzlem = sagital (öne-arkaya). Hareket = fleksiyon (kolu öne kaldırmak).</li>
+        <li><b>Egzersizi bul:</b> Kolu öne kaldıran egzersiz = <b>front raise</b>. Ana kas = <b>ön deltoid</b>. (Takılırsan: <a href="#uygulama-kart">kartlar</a> ya da aşağıdaki tablo.)</li>
+        <li><b>Hocaya cevabı söyle:</b> "Omuz fleksiyonu için dumbbell front raise yaptıracağım. Sagital düzlemde, agonist ön deltoid."</li>
+        <li><b>Üyeye 4 adımı uygula:</b> Anlat → Göster → Uygulat → Geri bildirim (manuel s. 76–77, 137).</li></ol></section>
+    <section class="card stack"><h2>4 adım: manuelin altın sıralaması</h2>
+      <div class="g2">
+        <div class="uystep"><span class="uyn">1</span><div><b>ANLAT</b> (işitsel)<p class="small">Hareketin adı, hangi eklem, hangi düzlem, hangi kas, neden yapıyoruz, 1–2 kilit nokta. Kısa ve basit dil.</p></div></div>
+        <div class="uystep"><span class="uyn">2</span><div><b>GÖSTER</b> (görsel)<p class="small">Üyeyi doğru açıya al: squat, row, curl gibi sagital hareketlerde <b>yandan</b>; lateral raise, lunge gibi frontal hareketlerde <b>önden</b>. Gösterirken konuşma. Doğru tempoda 2–3 tekrar.</p></div></div>
+        <div class="uystep"><span class="uyn">3</span><div><b>UYGULAT</b> (kinestetik)<p class="small">Hafif yükle ya da yüksüz, 5–8 tekrar. Önce başlangıç pozisyonunu kur, sonra 2–3 kısa komut ver. "Nerede hissettin?" diye sor.</p></div></div>
+        <div class="uystep"><span class="uyn">4</span><div><b>GERİ BİLDİRİM</b> (en önemli adım)<p class="small">Manuel: "Geri bildirim olmazsa öğrenme gerçekleşmez." Tek seferde tek düzeltme, olumlu dil ("dizlerini dışa it", "içe çökertme" değil), gerekirse tekrar göster.</p></div></div>
+      </div></section>
+    <section class="card stack"><h2>Örnek: baştan sona sınav konuşması</h2>
+      <div class="uydia">
+        <p><span class="pill">Hoca</span> Üst ekstremitede omuza sagital düzlemde fleksiyon yaptıran hareket nedir, yaptır.</p>
+        <p><span class="pill acc">Sen → hoca</span> Omuz fleksiyonu için dumbbell front raise yaptıracağım. Sagital düzlemde bir hareket, agonist kas ön deltoid; pectoralis majorun üst lifleri ve biceps yardım ediyor.</p>
+        <p><span class="pill ok">Sen → üye</span> Merhaba, bugün front raise öğreneceğiz. ${esc(ex[9].replace(/^Bu hareketin adı front raise\. /, ""))}</p>
+        <p><span class="pill ok">Sen → üye</span> Şimdi önce ben yapayım, yandan izle. <i>(Üyeyi yana al, konuşmadan 2–3 tekrar göster.)</i></p>
+        <p><span class="pill ok">Sen → üye</span> Şimdi sen dene. ${esc(ex[10].join(". "))}. ${esc(ex[11].join(". "))}. 6 tekrar yapalım.</p>
+        <p><span class="pill ok">Sen → üye</span> <i>(Üye gövdeyle sallanıyor.)</i> Güzel, kolların çok düzgün kalkıyor. Bir sonrakinde gövden sabit kalsın, sadece kolların hareket etsin. ... İşte bu, harika! Nerede hissettin? <i>(Omzumun önünde.)</i> Evet, tam orayı çalıştırıyoruz.</p>
+      </div>
+      <p class="small muted">Jüri genelde şunlara bakar: doğru egzersiz seçimi, eklem-düzlem-kas bilgisi, gösterim açısı, net ve kısa komutlar, hatayı görüp düzeltme, güvenlik (ısınma ve yük seçimi), üyeyle iletişim (göz teması, isimle hitap, cesaretlendirme).</p></section>
+    <section class="grid2" style="align-items:start">
+      <div class="card stack"><h2>Altın kurallar</h2><ul>
+        <li><b>Hareketin adını eklemle söyle:</b> "fleksiyon" değil, "omuz fleksiyonu".</li>
+        <li><b>Güvenlik önce:</b> Başlamadan "Bir ağrın ya da sakatlığın var mı?" diye sor. İlk denemede hafif yük.</li>
+        <li><b>Komutlar 2–4 kelime:</b> "Göğüs yukarı", "dirsekler sabit", "topuklardan it".</li>
+        <li><b>Dışsal odak:</b> "Kalça ekstansiyonunu tamamla" değil, "yeri it ve kalk".</li>
+        <li><b>Olumlu dil:</b> Ne yapmaması gerektiğini değil, ne yapması gerektiğini söyle.</li>
+        <li><b>Nefes:</b> Zorlanırken (konsantrik faz) nefes ver, dönüşte (eksantrik) al.</li>
+        <li><b>Dokunsal ipucu:</b> Kasa dokunmadan önce izin al: "Omzuna dokunabilir miyim?"</li>
+        <li><b>Tempo:</b> 1–2 sn kaldır, 2–3 sn indir.</li></ul></div>
+      <div class="card stack"><h2>Düzleme göre hızlı hatırlatma</h2>
+        <p>${plChip("Sagital")} öne-arkaya: fleksiyon, ekstansiyon, dorsi/plantar fleksiyon. <b>Göster: yandan.</b></p>
+        <p>${plChip("Frontal")} yana: abduksiyon, adduksiyon, lateral fleksiyon, elevasyon/depresyon, inversiyon/eversiyon. <b>Göster: önden.</b></p>
+        <p>${plChip("Horizontal")} dönme: iç/dış rotasyon, supinasyon/pronasyon, yatay add./abd., retraksiyon/protraksiyon. <b>Göster: önden veya üstten açıyla.</b></p>
+        <p class="small">Düzlemleri animasyonla görmek için: <a href="#anatomi-yon">Anatomi kampı → Yön ve düzlem</a>.</p></div></section>
+    <section class="card stack"><h2>Tüm soru tipleri: tek tablo</h2><p class="small muted">Sınavdan önce bu tabloyu ezberle. Ayrıntı ve konuşma metni için <a href="#uygulama-kart">hareket kartları</a>.</p>
+      <div class="tw"><table><thead><tr><th>Bölge</th><th>Eklem</th><th>Hareket</th><th>Düzlem</th><th>Egzersiz</th><th>Ana kas</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="row"><a class="btn" href="#uygulama-hoca">Pratik yap: hoca soruyor →</a><button class="btn ghost" onclick="window.print()">Tabloyu yazdır</button></div></section></div>`);
+};
 
 /* ============ extras: özet & notlar, ezber, karma, yıldızlı, sözlük, istatistik, ayarlar, program ============ */
 const KARMA_C = ["olc", "olc", "fiz", "fiz", "olc", "fa", "fiz", "ant", "fiz", "olc", "olc", "fa", "ant", "ant", "ant", "fa", "olc", "bes", "olc", "fiz", "egi", "fa", "olc", "bes", "ant"];
